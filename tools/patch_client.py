@@ -12,7 +12,7 @@ from urllib.parse import urlsplit
 import xml.etree.ElementTree as ET
 
 ANDROID = "{http://schemas.android.com/apk/res/android}"
-PACKAGE = "dev.luxius.luxblox.test2021"
+PACKAGE = "com.luxius.luxblox"
 ORIGINAL_PACKAGE = "com.roblox.clienc"
 
 
@@ -70,7 +70,7 @@ def patch(decoded, origin):
     app = root.find("application")
     if app is None:
         raise ValueError("Missing Android application declaration")
-    app.set(ANDROID + "label", "LuxBlox Test (2021)")
+    app.set(ANDROID + "label", "LuxBlox")
     # Keep Java class names as com.roblox.client. Only the distinct application
     # ID and its matching authority/permission constants are changed.
     for element in root.iter():
@@ -95,3 +95,4 @@ if __name__ == "__main__":
     parser.add_argument("--api-base", required=True)
     args = parser.parse_args()
     print(json.dumps(patch(args.decoded, args.api_base), ensure_ascii=False, indent=2))
+

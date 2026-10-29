@@ -145,6 +145,20 @@ class ApiTests(unittest.TestCase):
         self.assertIn("Изменить за 500 Robux", html)
         self.assertNotIn("test-password", html)
 
+    def test_private_chat_api_authentication_and_visibility(self):
+        self.assertEqual(self.request("GET", "/luxblox/chat/messages")[0], 401)
+        self.authenticated_post("/v2/signup", {"username":"ChatSender", "password":"test-password"})
+        sender_cookies=dict(self.cookies)
+        self.authenticated_post("/v2/signup", {"username":"ChatReceiver", "password":"test-password"})
+        receiver_cookies=dict(self.cookies)
+        self.cookies=sender_cookies
+        status, sent=self.authenticated_post("/luxblox/chat/send", {"recipient":"ChatReceiver", "message":"hello <script>"})
+        self.assertEqual(status,200)
+        self.cookies=receiver_cookies
+        self.assertEqual(self.request("GET", "/luxblox/chat/messages")[1]["data"][0]["id"],sent["id"])
+        self.authenticated_post("/v2/signup", {"username":"ChatOther", "password":"test-password"})
+        self.assertEqual(self.request("GET", "/luxblox/chat/messages"),(200,{"data":[]}))
+
     def test_unknown_routes_are_not_false_success(self):
         self.assertEqual(self.request("GET", "/game/join")[0], 404)
         self.assertEqual(self.request("GET", "/v2/signup")[0], 404)

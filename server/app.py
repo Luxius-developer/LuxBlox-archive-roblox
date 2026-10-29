@@ -19,7 +19,7 @@ from http.cookies import SimpleCookie, CookieError
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from threading import Lock
 from urllib.parse import parse_qs, urlsplit
-from server import realtime, postgres, accounts, account_pages
+from server import realtime, postgres, accounts, account_pages, chat
 from server.errors import ApiError
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -49,6 +49,7 @@ class Backend:
         self.realtime_secret = secrets.token_bytes(32)
         self.rate_lock = Lock()
         self.attempts = {}
+        self.chat_attempts = {}
         if not self.is_postgres:
             Path(self.database).parent.mkdir(parents=True, exist_ok=True)
         with self.connect() as db:
@@ -68,6 +69,7 @@ class Backend:
                 );
             """)
             accounts.initialize(db, self.is_postgres)
+            chat.initialize(db)
 
     @contextmanager
     def connect(self):
@@ -92,6 +94,15 @@ class Backend:
             if count >= 20:
                 raise ApiError(429, "Too many attempts. Try again later.")
             self.attempts[address] = (start, count + 1)
+
+    def rate_limit_chat(self, user_id):
+        now = time.monotonic()
+        with self.rate_lock:
+            self.chat_attempts = {k:v for k,v in self.chat_attempts.items() if now-v[0]<60}
+            start, count = self.chat_attempts.get(user_id, (now,0))
+            if count >= 60:
+                raise ApiError(429, "Слишком много сообщений. Подождите минуту.")
+            self.chat_attempts[user_id] = (start,count+1)
 
     @staticmethod
     def password_hash(password, salt):
@@ -299,6 +310,48 @@ class Handler(BaseHTTPRequestHandler):
                                       or namespace in {"api", "apis", "web", "www"}):
             path = "/" + tail
         backend = self.server.backend
+        if path == "/luxblox/chat/messages" and self.command in ("GET", "HEAD"):
+            user = backend.current_user(self.cookie_value(SESSION_COOKIE))
+            return self.reply(200, {"data": chat.messages(backend, user["id"])})
+        if path == "/luxblox/chat/send" and self.command == "POST":
+            user = backend.current_user(self.cookie_value(SESSION_COOKIE))
+            if not self.require_csrf():
+                return
+            backend.rate_limit_chat(user["id"])
+            body = self.read_json()
+            message_id = chat.send(backend, user["id"], body.get("recipient"), body.get("message"))
+            return self.reply(200, {"id": message_id})
+        if path in ("/my/messages", "/messages") and self.command in ("GET", "POST", "HEAD"):
+            session = self.cookie_value(SESSION_COOKIE)
+            user = backend.current_user(session)
+            csrf = accounts.token(backend, user["id"], session)
+            status, message = 200, ""
+            if self.command == "POST":
+                try:
+                    if self.headers.get_content_type() != "application/x-www-form-urlencoded" or self.headers.get("Transfer-Encoding"):
+                        raise ApiError(415, "Отправьте сообщение через форму.")
+                    try:
+                        length = int(self.headers.get("Content-Length", "0"))
+                        if not 0 < length <= MAX_BODY:
+                            raise ValueError()
+                        values = parse_qs(self.rfile.read(length).decode(), keep_blank_values=True, max_num_fields=8)
+                        if any(len(v) != 1 for v in values.values()):
+                            raise ValueError()
+                        form = {k:v[0] for k,v in values.items()}
+                    except (ValueError, UnicodeDecodeError):
+                        raise ApiError(400, "Некорректная форма.") from None
+                    if not re.fullmatch(r"[a-f0-9]{64}", form.get("csrf", "")) or not hmac.compare_digest(form["csrf"], csrf):
+                        raise ApiError(403, "Откройте страницу заново и повторите.")
+                    backend.rate_limit_chat(user["id"])
+                    chat.send(backend, user["id"], form.get("recipient"), form.get("message"))
+                    return self.reply(303, headers=[("Location", "/my/messages")])
+                except ApiError as exc:
+                    status, message = exc.status, exc.message
+            return self.reply(status, chat.render(csrf, message, status != 200), [("Content-Type", "text/html; charset=utf-8"),
+                ("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'")])
+        if path in ("/help", "/info/about", "/about", "/info/privacy", "/info/terms-of-service") and self.command in ("GET", "HEAD"):
+            page = '<!doctype html><html lang="ru"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>LuxBlox</title><body style="font:18px Arial;padding:24px"><h1>LuxBlox</h1><p>Vortix studio · 2010</p><p>Архивный игровой проект LuxBlox. Разделы сервиса находятся на нашем сервере.</p><p>Аккаунты, тестовый баланс и переписка сохраняются в базе LuxBlox.</p></body></html>'
+            return self.reply(200, page.encode(), [("Content-Type", "text/html; charset=utf-8")])
         if path in ("/upgrades/robux", "/my/account") and self.command in ("GET", "POST", "HEAD"):
             session = self.cookie_value(SESSION_COOKIE)
             profile = backend.current_account(session)
