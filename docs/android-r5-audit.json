@@ -1,0 +1,20 @@
+{
+  "package": "com.luxius.luxblox",
+  "label": "LuxBlox",
+  "versionCode": 971,
+  "sha256": "947135b461dc1f76cc7b8fe9c4328fd514848042b94a19f71e97b28c54bc7588",
+  "native_libraries_unchanged": 10,
+  "ca_bundle_unchanged": true,
+  "changed_obb_entries": [
+    "ExtraContent/LuaPackages/AppTempCommon/LuaApp/Http/Url.lua",
+    "ExtraContent/LuaPackages/Packages/_Index/roblox_networking-friends/networking-friends/buildApiSiteUrl.lua",
+    "ExtraContent/LuaPackages/Packages/_Index/roblox_networking-presence/networking-presence/buildApiSiteUrl.lua",
+    "ExtraContent/LuaPackages/Packages/_Index/roblox_networking-users/networking-users/buildApiSiteUrl.lua",
+    "ExtraContent/LuaPackages/Packages/_Index/roblox_url-builder/url-builder/UrlBase.lua",
+    "ExtraContent/places/Mobile.rbxl",
+    "ExtraContent/scripts/CoreScripts/Modules/InGameMenu/Network/Url.lua",
+    "ExtraContent/textures/ui/LuaApp/graphic/Auth/logo_white_1x.png",
+    "content/textures/loading/robloxlogo.png"
+  ],
+  "android_device_verified": false
+}
