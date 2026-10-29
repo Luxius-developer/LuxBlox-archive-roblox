@@ -1,0 +1,19 @@
+{
+  "apk_sha256": "01bd346036cad005e164586f6f53f69e5dd118d2f63b5f094e17e71be77a5cae",
+  "changed_obb_entries": [
+    "ExtraContent/LuaPackages/AppTempCommon/LuaApp/Http/Url.lua",
+    "ExtraContent/LuaPackages/Packages/_Index/roblox_networking-friends/networking-friends/buildApiSiteUrl.lua",
+    "ExtraContent/LuaPackages/Packages/_Index/roblox_networking-presence/networking-presence/buildApiSiteUrl.lua",
+    "ExtraContent/LuaPackages/Packages/_Index/roblox_networking-users/networking-users/buildApiSiteUrl.lua",
+    "ExtraContent/LuaPackages/Packages/_Index/roblox_url-builder/url-builder/UrlBase.lua",
+    "ExtraContent/places/Mobile.rbxl",
+    "ExtraContent/scripts/CoreScripts/Modules/InGameMenu/Network/Url.lua"
+  ],
+  "native_libraries_unchanged": 10,
+  "scene": {
+    "entry": "ExtraContent/places/Mobile.rbxl",
+    "before": "6d8f21eca6b3d78dae4352c3f5f93f51cbb594b215260b5526aa8abe18f1d7c9",
+    "after": "158a859c1e52c11a1964235db51256a801293b5d038371044bfdd4fadab7ed8d"
+  },
+  "android_menu_verified": false
+}
