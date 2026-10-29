@@ -1,0 +1,404 @@
+[
+  {
+    "entry": "ExtraContent/models/DataModelPatch/DataModelPatch.rbxm",
+    "before": "686337134a49e555e5bfdd1ad6162b99b8e2363cea75066a45db2935d54076ae",
+    "after": "94322a04179f5b3483f7129080fef9a545a52c030874ba843d73219902adb5da",
+    "modules": [
+      {
+        "module": "Url",
+        "changes": [
+          {
+            "from": "https://api.%s",
+            "to": "https://luxblox-api.onrender.com/api/"
+          },
+          {
+            "from": "https://apis.%s",
+            "to": "https://luxblox-api.onrender.com/apis/"
+          },
+          {
+            "from": "https://auth.%s",
+            "to": "https://luxblox-api.onrender.com/auth/"
+          },
+          {
+            "from": "https://accountsettings.%s",
+            "to": "https://luxblox-api.onrender.com/accountsettings/"
+          },
+          {
+            "from": "https://avatar.%s",
+            "to": "https://luxblox-api.onrender.com/avatar/"
+          },
+          {
+            "from": "https://catalog.%s",
+            "to": "https://luxblox-api.onrender.com/catalog/"
+          },
+          {
+            "from": "https://inventory.%s",
+            "to": "https://luxblox-api.onrender.com/inventory/"
+          },
+          {
+            "from": "https://chat.%sv2",
+            "to": "https://luxblox-api.onrender.com/chat/v2"
+          },
+          {
+            "from": "https://friends.%sv1",
+            "to": "https://luxblox-api.onrender.com/friends/v1"
+          },
+          {
+            "from": "https://users.%sv1",
+            "to": "https://luxblox-api.onrender.com/users/v1"
+          },
+          {
+            "from": "https://assetgame.%s",
+            "to": "https://luxblox-api.onrender.com/assetgame/"
+          },
+          {
+            "from": "https://games.%s",
+            "to": "https://luxblox-api.onrender.com/games/"
+          },
+          {
+            "from": "https://groups.%s",
+            "to": "https://luxblox-api.onrender.com/groups/"
+          },
+          {
+            "from": "https://notifications.%s",
+            "to": "https://luxblox-api.onrender.com/notifications/"
+          },
+          {
+            "from": "https://presence.%sv1",
+            "to": "https://luxblox-api.onrender.com/presence/v1"
+          },
+          {
+            "from": "https://realtime.%s",
+            "to": "https://luxblox-api.onrender.com/realtime/"
+          },
+          {
+            "from": "https://web.%s",
+            "to": "https://luxblox-api.onrender.com/web/"
+          },
+          {
+            "from": "https://www.%s",
+            "to": "https://luxblox-api.onrender.com/www/"
+          },
+          {
+            "from": "https://ads.%s",
+            "to": "https://luxblox-api.onrender.com/ads/"
+          },
+          {
+            "from": "https://followings.%s",
+            "to": "https://luxblox-api.onrender.com/followings/"
+          },
+          {
+            "from": "https://economy.%s",
+            "to": "https://luxblox-api.onrender.com/economy/"
+          },
+          {
+            "from": "https://thumbnails.%s",
+            "to": "https://luxblox-api.onrender.com/thumbnails/"
+          },
+          {
+            "from": "https://premiumfeatures.%s",
+            "to": "https://luxblox-api.onrender.com/premiumfeatures/"
+          },
+          {
+            "from": "https://locale.%s",
+            "to": "https://luxblox-api.onrender.com/locale/"
+          },
+          {
+            "from": "https://badges.%s",
+            "to": "https://luxblox-api.onrender.com/badges/"
+          },
+          {
+            "from": "https://metrics.%sv1",
+            "to": "https://luxblox-api.onrender.com/metrics/v1"
+          },
+          {
+            "from": "https://apis.rcs.%s",
+            "to": "https://luxblox-api.onrender.com/apis.rcs/"
+          },
+          {
+            "from": "https://discussions.%s",
+            "to": "https://luxblox-api.onrender.com/discussions/"
+          },
+          {
+            "from": "https://contacts.%s",
+            "to": "https://luxblox-api.onrender.com/contacts/"
+          },
+          {
+            "from": "https://search.%s",
+            "to": "https://luxblox-api.onrender.com/search/"
+          },
+          {
+            "from": "https://static.%s",
+            "to": "https://luxblox-api.onrender.com/static/"
+          },
+          {
+            "from": "https://gamesearchuitreatments.api.%s",
+            "to": "https://luxblox-api.onrender.com/gamesearchuitreatments.api/"
+          },
+          {
+            "from": "https://economycreatorstats.%s",
+            "to": "https://luxblox-api.onrender.com/economycreatorstats/"
+          },
+          {
+            "from": "https://economycreatorstats.api.%s",
+            "to": "https://luxblox-api.onrender.com/economycreatorstats.api/"
+          },
+          {
+            "from": "https://blog.roblox.com/",
+            "to": "https://luxblox-api.onrender.com/blog/"
+          },
+          {
+            "from": "https://corp.roblox.com/",
+            "to": "https://luxblox-api.onrender.com/info/"
+          }
+        ],
+        "unchanged_code_tail_sha256": "5ceb7af36513d372ced1fcafbcb75e33cb08b1984bfcb190c0a9a8b62f2342f1"
+      },
+      {
+        "module": "buildApiSiteUrl",
+        "changes": [
+          {
+            "from": "https://%s.%s",
+            "to": "https://luxblox-api.onrender.com/%s/"
+          }
+        ],
+        "unchanged_code_tail_sha256": "0b9d6a052db75bba653b1f336f9224ad04321b04b08512cd2c5435a43aaa9ae0"
+      },
+      {
+        "module": "buildApiSiteUrl",
+        "changes": [
+          {
+            "from": "https://%s.%s",
+            "to": "https://luxblox-api.onrender.com/%s/"
+          }
+        ],
+        "unchanged_code_tail_sha256": "0b9d6a052db75bba653b1f336f9224ad04321b04b08512cd2c5435a43aaa9ae0"
+      },
+      {
+        "module": "buildApiSiteUrl",
+        "changes": [
+          {
+            "from": "https://%s.%s",
+            "to": "https://luxblox-api.onrender.com/%s/"
+          }
+        ],
+        "unchanged_code_tail_sha256": "0b9d6a052db75bba653b1f336f9224ad04321b04b08512cd2c5435a43aaa9ae0"
+      },
+      {
+        "module": "UrlBase",
+        "changes": [
+          {
+            "from": "http",
+            "to": "https"
+          },
+          {
+            "from": "://",
+            "to": "://luxblox-api.onrender.com/"
+          },
+          {
+            "from": ".",
+            "to": ""
+          },
+          {
+            "from": ".*://",
+            "to": ".*"
+          },
+          {
+            "from": "https://blog.roblox.com",
+            "to": "https://luxblox-api.onrender.com/blog/"
+          },
+          {
+            "from": "https://corp.roblox.com",
+            "to": "https://luxblox-api.onrender.com/info/"
+          }
+        ],
+        "unchanged_code_tail_sha256": "fa1dd986889270d0886ffd2428c8abe1700d2c76db6e8f04d4ae88dcb5449c95"
+      },
+      {
+        "module": "getAssetCreationDetails",
+        "changes": [
+          {
+            "from": "https://itemconfiguration.%s",
+            "to": "https://luxblox-api.onrender.com/itemconfiguration/"
+          }
+        ],
+        "unchanged_code_tail_sha256": "51dfea733d1e2ab2e364a68cd45954d8f569b78c4193942667ca6750f7538d5e"
+      },
+      {
+        "module": "GameRequests",
+        "changes": [
+          {
+            "from": "https://gameinternationalization.%s",
+            "to": "https://luxblox-api.onrender.com/gameinternationalization/"
+          }
+        ],
+        "unchanged_code_tail_sha256": "20e31369add5432d53590cc123b6f504d1412f17a0d5d5f2c60359aaffcb2b8f"
+      },
+      {
+        "module": "Url",
+        "changes": [
+          {
+            "from": "https://games.%s",
+            "to": "https://luxblox-api.onrender.com/games/"
+          },
+          {
+            "from": "https://apis.rcs.%s",
+            "to": "https://luxblox-api.onrender.com/apis.rcs/"
+          },
+          {
+            "from": "https://apis.%s",
+            "to": "https://luxblox-api.onrender.com/apis/"
+          }
+        ],
+        "unchanged_code_tail_sha256": "5596e2cac7e0150ce0e25ae5b62894377c6941d0b98f4da16cdc6d680b61b1a2"
+      },
+      {
+        "module": "Url",
+        "changes": [
+          {
+            "from": "https://api.%s",
+            "to": "https://luxblox-api.onrender.com/api/"
+          },
+          {
+            "from": "https://auth.%s",
+            "to": "https://luxblox-api.onrender.com/auth/"
+          },
+          {
+            "from": "https://accountsettings.%s",
+            "to": "https://luxblox-api.onrender.com/accountsettings/"
+          },
+          {
+            "from": "https://avatar.%s",
+            "to": "https://luxblox-api.onrender.com/avatar/"
+          },
+          {
+            "from": "https://catalog.%s",
+            "to": "https://luxblox-api.onrender.com/catalog/"
+          },
+          {
+            "from": "https://chat.%sv2",
+            "to": "https://luxblox-api.onrender.com/chat/v2"
+          },
+          {
+            "from": "https://friends.%sv1",
+            "to": "https://luxblox-api.onrender.com/friends/v1"
+          },
+          {
+            "from": "https://assetgame.%s",
+            "to": "https://luxblox-api.onrender.com/assetgame/"
+          },
+          {
+            "from": "https://games.%s",
+            "to": "https://luxblox-api.onrender.com/games/"
+          },
+          {
+            "from": "https://notifications.%s",
+            "to": "https://luxblox-api.onrender.com/notifications/"
+          },
+          {
+            "from": "https://presence.%sv1",
+            "to": "https://luxblox-api.onrender.com/presence/v1"
+          },
+          {
+            "from": "https://realtime.%s",
+            "to": "https://luxblox-api.onrender.com/realtime/"
+          },
+          {
+            "from": "https://web.%s",
+            "to": "https://luxblox-api.onrender.com/web/"
+          },
+          {
+            "from": "https://www.%s",
+            "to": "https://luxblox-api.onrender.com/www/"
+          },
+          {
+            "from": "https://ads.%s",
+            "to": "https://luxblox-api.onrender.com/ads/"
+          },
+          {
+            "from": "https://followings.%s",
+            "to": "https://luxblox-api.onrender.com/followings/"
+          },
+          {
+            "from": "https://economy.%s",
+            "to": "https://luxblox-api.onrender.com/economy/"
+          },
+          {
+            "from": "https://thumbnails.%s",
+            "to": "https://luxblox-api.onrender.com/thumbnails/"
+          },
+          {
+            "from": "https://premiumfeatures.%s",
+            "to": "https://luxblox-api.onrender.com/premiumfeatures/"
+          },
+          {
+            "from": "https://locale.%s",
+            "to": "https://luxblox-api.onrender.com/locale/"
+          },
+          {
+            "from": "https://badges.%s",
+            "to": "https://luxblox-api.onrender.com/badges/"
+          },
+          {
+            "from": "https://metrics.%sv1",
+            "to": "https://luxblox-api.onrender.com/metrics/v1"
+          },
+          {
+            "from": "https://apis.rcs.%s",
+            "to": "https://luxblox-api.onrender.com/apis.rcs/"
+          },
+          {
+            "from": "https://discussions.%s",
+            "to": "https://luxblox-api.onrender.com/discussions/"
+          },
+          {
+            "from": "https://gameinternationalization.%s",
+            "to": "https://luxblox-api.onrender.com/gameinternationalization/"
+          },
+          {
+            "from": "https://blog.roblox.com/",
+            "to": "https://luxblox-api.onrender.com/blog/"
+          },
+          {
+            "from": "https://corp.roblox.com/",
+            "to": "https://luxblox-api.onrender.com/info/"
+          }
+        ],
+        "unchanged_code_tail_sha256": "fd1dba42e91a9175fa389cae4fbba9d1c1e5ffa96396ab9768acadd5811c5322"
+      },
+      {
+        "module": "MorePageSettings",
+        "changes": [
+          {
+            "from": "icons/menu/create_large",
+            "to": "icons/menu/settings_large"
+          },
+          {
+            "from": "feeds/inapp",
+            "to": "games/start?placeid=1001"
+          },
+          {
+            "from": "develop/landing",
+            "to": "admin"
+          }
+        ],
+        "unchanged_code_tail_sha256": "87da0a62f9addc492c4ebd600bc1dadc66cd3c86f7f0dc9d683284cd8694b4a2"
+      }
+    ]
+  },
+  {
+    "entry": "content/places/AvatarEditor.rbxl",
+    "before": "c606d83dbd1803a53a761e26685d94a3fd5d0ddea1a421efe4826a9d21124692",
+    "after": "cb6f4a589f29a9f9e3379d3bb93408ebde865d94e642d48fb8b4957ed4a6bb02",
+    "modules": [
+      {
+        "script": "AvatarStarterScriptV1",
+        "urls_rewritten": true
+      },
+      {
+        "script": "AvatarStarterScriptV2",
+        "urls_rewritten": true
+      }
+    ]
+  }
+]

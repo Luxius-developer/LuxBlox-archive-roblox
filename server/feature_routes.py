@@ -96,6 +96,39 @@ def route(h,path,url,namespace):
             if len(keyword)<2:return reply(200,{'data':[],'nextPageCursor':None,'previousPageCursor':None})
             with b.connect() as db:rows=db.execute('SELECT id FROM users WHERE lower(username) LIKE lower(?) ORDER BY id LIMIT 30',('%'+keyword+'%',)).fetchall()
             return reply(200,{'data':[f.user(b,r['id']) for r in rows],'nextPageCursor':None,'previousPageCursor':None})
+    if path in ('/v1/avatar-fetch','/v1.1/avatar-fetch','/avatar/v1.1/avatar-fetch','/v1.0/avatar-fetch-thumbnail') and method in ('GET','HEAD'):
+        try:uid=int(q['userId'][0]) if 'userId' in q else current()['id']
+        except (ValueError,TypeError):raise ApiError(400,'Некорректный userId.') from None
+        return reply(200,f.native_avatar_fetch(b,uid))
+    if path in ('/Asset/BodyColors.ashx','/Asset/CharacterFetch.ashx') and method in ('GET','HEAD'):
+        try:uid=int(q.get('userId',['0'])[0])
+        except ValueError:raise ApiError(400,'Некорректный userId.') from None
+        if path.endswith('BodyColors.ashx'):return reply(200,f.body_colors_xml(b,uid),[('Content-Type','application/xml')])
+        a=f.avatar(b,uid);links=[b.public_origin+'/Asset/BodyColors.ashx?userId='+str(uid)]+[b.public_origin+'/asset/?id='+str(asset['id']) for asset in a['assets']]
+        return reply(200,';'.join(links).encode(),[('Content-Type','text/plain')])
+    if namespace=='avatar' and re.fullmatch(r'/v1/recent-items/[^/]+/list',path) and method in ('GET','HEAD'):
+        uid=current()['id'];a=f.avatar(b,uid)
+        return reply(200,{'data':a['assets']})
+    inv=re.fullmatch(r'/v[12]/users/(\d+)/inventory(?:/([^/]+))?',path)
+    if (namespace=='inventory' and inv or path=='/users/inventory/list-json') and method in ('GET','HEAD'):
+        try:uid=int(inv[1]) if inv else int(q.get('userId',['0'])[0])
+        except ValueError:raise ApiError(400,'Некорректный ID.') from None
+        f.user(b,uid)
+        if not f.preferences(b,uid)['inventoryVisible'] and current()['id']!=uid:raise ApiError(403,'Инвентарь закрыт.')
+        with b.connect() as db:owned={r['item_id'] for r in db.execute('SELECT item_id FROM catalog_owned WHERE user_id=?',(uid,)).fetchall()}
+        category=inv[2] if inv else q.get('assetTypeId',['11'])[0]
+        items=[p for p in f.SHIRTS if p['id'] in owned and category in (None,'11','Shirts','Shirt')]
+        if path=='/users/inventory/list-json':return reply(200,{'IsValid':True,'Data':{'TotalItems':len(items),'nextPageCursor':None,'Items':[{'Item':{'AssetId':p['id'],'Name':p['name'],'Description':'LuxBlox'},'UserItem':{'IsRentalExpired':False}} for p in items]}})
+        return reply(200,{'data':[{'id':p['id'],'assetId':p['id'],'name':p['name'],'assetType':11,'assetTypeId':11} for p in items],'nextPageCursor':None,'previousPageCursor':None})
+    if namespace=='catalog' and (re.fullmatch(r'/v1/catalog/items/\d+/details',path) or path=='/v1/catalog/items/details') and method in ('GET','POST','HEAD'):
+        if method=='POST':
+            body=h.read_json();wanted={x.get('id') for x in body.get('items',[]) if isinstance(x,dict)}
+        else:
+            m=re.fullmatch(r'/v1/catalog/items/(\d+)/details',path);wanted={int(m[1])} if m else set()
+        items=[{'id':p['id'],'name':p['name'],'description':'Оригинальная рубашка LuxBlox','itemType':'Asset','assetType':11,'productId':p['id'],'price':0,'creatorName':'Vortix Studio','creatorTargetId':b.owner_user_id,'creatorType':'User','isForSale':True} for p in f.SHIRTS if p['id'] in wanted]
+        if path.endswith('/items/details'):return reply(200,{'data':items})
+        if not items:raise ApiError(404,'Предмет не найден.')
+        return reply(200,items[0])
     if namespace=='avatar' or path in ('/v1/avatar','/v1/avatar/set-body-colors','/v1/avatar-rules'):
         match=re.fullmatch(r'/v1/users/(\d+)/avatar',path)
         if method in ('GET','HEAD') and (path=='/v1/avatar' or match):return reply(200,f.avatar(b,int(match[1]) if match else current()['id']))
@@ -104,8 +137,8 @@ def route(h,path,url,namespace):
             if not h.require_csrf():return True
             f.set_avatar(b,uid,h.read_json());return reply(200,{'success':True})
         if path=='/v1/avatar-rules' and method in ('GET','HEAD'):
-            return reply(200,{'playerAvatarTypes':['R6'],'scales':{},'wearableAssetTypes':[], 'bodyColorsPalette':[{'brickColorId':i,'hexColor':c[1:],'name':c} for i,c in f.PALETTE.items()], 'minimumDeltaEBodyColorDifference':0,'proportionsAndBodyTypeEnabledForUser':False,'defaultClothingAssetLists':{'defaultShirtAssetIds':[],'defaultPantAssetIds':[]}})
-    if namespace=='catalog' and path in ('/v1/search/items/details','/v1/search/items') and method in ('GET','HEAD'):
+            return reply(200,{'playerAvatarTypes':['R6'],'scales':{},'wearableAssetTypes':[{'id':11,'name':'Shirt','maxNumber':1}], 'bodyColorsPalette':[{'brickColorId':i,'hexColor':c[1:],'name':c} for i,c in f.PALETTE.items()], 'minimumDeltaEBodyColorDifference':0,'proportionsAndBodyTypeEnabledForUser':False,'defaultClothingAssetLists':{'defaultShirtAssetIds':[],'defaultPantAssetIds':[]}})
+    if namespace=='catalog' and path in ('/v1/search/items/details','/v2/search/items/details','/v1/search/items') and method in ('GET','HEAD'):
         return reply(200,{'data':[dict(id=p['id'],name=p['name'],description='Оригинальная одежда Vortix Studio для LuxBlox.',itemType='Asset',assetType=11,creatorType='User',creatorTargetId=b.owner_user_id,creatorName='Vortix Studio',price=0,lowestPrice=0,productId=p['id']) for p in f.SHIRTS],'nextPageCursor':None,'previousPageCursor':None})
     if path=='/luxblox/catalog' and method in ('GET','HEAD'):return reply(200,{'data':f.PRESETS+f.SHIRTS})
     if namespace=='inventory' and method in ('GET','HEAD'):
@@ -146,7 +179,15 @@ def route(h,path,url,namespace):
     if namespace=='thumbnails' and path=='/v1/assets' and method in ('GET','HEAD'):
         ids=set(','.join(q.get('assetIds',[])).split(','))
         return reply(200,{'data':[{'targetId':p['id'],'state':'Completed','imageUrl':b.public_origin+'/asset/?id='+str(p['textureId'])} for p in f.SHIRTS if str(p['id']) in ids]})
-    if path in ('/Thumbs/Avatar.ashx','/Thumbs/Headshot.ashx') and method in ('GET','HEAD'):
+    if path=='/Thumbs/Asset.ashx' and method in ('GET','HEAD'):
+        try:aid=int(q.get('assetId',['0'])[0])
+        except ValueError:raise ApiError(400,'Некорректный assetId.') from None
+        p=next((x for x in f.SHIRTS if x['id']==aid),None)
+        if aid==1001:name='place-1001.png'
+        elif p:name='shirt-'+str(p['id']-6000)+'.png'
+        else:raise ApiError(404,'Миниатюра не найдена.')
+        return reply(200,(__import__('pathlib').Path(__file__).parent/'static'/name).read_bytes(),[('Content-Type','image/png')])
+    if path in ('/Thumbs/Avatar.ashx','/Thumbs/Headshot.ashx','/avatar-thumbnail/image','/headshot-thumbnail/image') and method in ('GET','HEAD'):
         try:uid=int(q.get('userId',q.get('userid',['0']))[0])
         except ValueError:raise ApiError(400,'Некорректный ID.') from None
         return reply(200,f.avatar_png(b,uid),[('Content-Type','image/png')])

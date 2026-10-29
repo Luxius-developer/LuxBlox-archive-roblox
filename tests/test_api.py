@@ -160,6 +160,32 @@ class ApiTests(unittest.TestCase):
         self.authenticated_post("/v2/signup", {"username":"ChatOther", "password":"test-password"})
         self.assertEqual(self.request("GET", "/luxblox/chat/messages"),(200,{"data":[]}))
 
+    def test_native_avatar_fetch_bodycolors_and_clean_web_surfaces(self):
+        import xml.etree.ElementTree as ET
+        self.authenticated_post('/v2/signup',{'username':'NativeAvatar','password':'test-password'})
+        fetch=self.request('GET','/avatar/v1/avatar-fetch?userId=1&placeId=1001')[1]
+        self.assertEqual(fetch['resolvedAvatarType'],'R6')
+        self.assertEqual(fetch['bodyColors']['HeadColor'],fetch['bodyColors']['headColorId'])
+        self.assertEqual(fetch['scales']['Height'],1)
+        self.assertEqual(fetch['assetAndAssetTypeIds'],[])
+        self.authenticated_post('/economy/v1/purchases/products/6001',{})
+        self.authenticated_post('/avatar/v1/avatar/set-wearing-assets',{'assetIds':[6001]})
+        fetch=self.request('GET','/avatar/v1/avatar-fetch?userId=1')[1]
+        self.assertEqual(fetch['assetAndAssetTypeIds'],[{'assetId':6001,'assetTypeId':11}])
+        self.assertEqual(self.request('GET','/inventory/v2/users/1/inventory')[1]['data'][0]['assetId'],6001)
+        self.assertEqual(self.request('GET','/catalog/v1/catalog/items/6001/details')[1]['assetType'],11)
+        def raw(path):
+            c=http.client.HTTPConnection(*self.server.server_address,timeout=5)
+            try:
+                c.request('GET',path,headers={'Cookie':'; '.join(f'{k}={v}' for k,v in self.cookies.items())})
+                r=c.getresponse();return r.status,r.read()
+            finally:c.close()
+        status,xml=raw('/Asset/BodyColors.ashx?userId=1');self.assertEqual(status,200)
+        self.assertEqual(ET.fromstring(xml).find(".//int[@name='HeadColor']").text,'24')
+        self.assertNotIn(b'<nav',raw('/users/friends')[1])
+        self.assertNotIn(b'.svg',raw('/my/avatar')[1])
+        self.assertNotIn('✓'.encode(),raw('/more')[1])
+
     def test_web_login_requires_csrf_and_sets_a_session(self):
         import re
         self.backend.register('WebSignIn','test-password')

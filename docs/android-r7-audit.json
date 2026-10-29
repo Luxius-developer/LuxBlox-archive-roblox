@@ -1,0 +1,20 @@
+{
+  "package": "com.luxius.luxblox",
+  "versionCode": 973,
+  "sha256": "6f1a52c60e8c99fb40f351327fc2b721470b59174d66c1d5d915b534c456f1dd",
+  "size": 184918067,
+  "native_libraries_unchanged": 10,
+  "ca_bundle_unchanged": true,
+  "changed_obb_entries": [
+    "ExtraContent/models/DataModelPatch/DataModelPatch.rbxm",
+    "content/places/AvatarEditor.rbxl"
+  ],
+  "signatures_verified": [
+    "v1",
+    "v2",
+    "v3"
+  ],
+  "alignment_verified": true,
+  "android_device_verified": false,
+  "rcc_connection_verified": false
+}

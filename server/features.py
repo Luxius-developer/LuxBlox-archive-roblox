@@ -173,9 +173,9 @@ def page(backend,uid,session,path,query,notice=''):
     csrf=accounts.token(backend,uid,session)
     me=user(backend,uid)
     def form(action,body):return '<form method="post"><input type="hidden" name="csrf" value="'+csrf+'"><input type="hidden" name="action" value="'+action+'">'+body+'</form>'
-    def badge(u):return e(u['displayName'])+(' <span class="badge" title="Подтверждён в LuxBlox">✓</span>' if u['hasVerifiedBadge'] else '')
+    def badge(u):return e(u['displayName'])
     admin=uid==backend.owner_user_id
-    nav='<nav class="tabs">'+''.join('<a href="'+url+'">'+name+'</a>' for name,url in [('Главная','/home'),('Игры','/games'),('Друзья','/users/friends'),('Аватар','/my/avatar'),('Каталог','/catalog'),('Инвентарь','/my/inventory'),('Чат','/my/messages'),('Ещё','/more')])+'</nav>'
+    nav=''
     title='LuxBlox';body=''
     if path in ('/more','/help'):
         title='Ещё' if path=='/more' else 'Справка и разделы LuxBlox'
@@ -214,13 +214,8 @@ def page(backend,uid,session,path,query,notice=''):
             body+='</section>'
         if not is_catalog and not owned:body+='<p>Инвентарь пока пуст. <a href="/catalog">Выбрать комплект</a></p>'
     elif path=='/my/avatar':
-        title='Редактор аватара';a=avatar(backend,uid)
-        body='<section><img class="avatar" src="/luxblox/avatar/'+str(uid)+'.svg" alt="Мой персонаж R6"><p>Классический R6 · цвета сохраняются в аккаунте.</p>'
-        labels=['Голова','Тело','Левая рука','Правая рука','Левая нога','Правая нога']
-        options=''
-        for key,label in zip(DEFAULT_COLORS,labels):
-            options+='<label>'+label+'<select name="'+key+'">'+''.join('<option value="'+str(k)+'"'+(' selected' if a['bodyColors'][key]==k else '')+'>'+v+'</option>' for k,v in PALETTE.items())+'</select></label>'
-        body+=form('avatar_colors',options+'<button>Сохранить аватар</button>')+'</section><p><a href="/my/inventory">Мои комплекты</a> · <a href="/catalog">Каталог</a></p>'
+        title='Аватар'
+        body='<section><p>Откройте встроенную вкладку «Аватар» в приложении LuxBlox. Она использует 3D-движок клиента.</p></section>'
     elif path in ('/premium/membership','/mobile-app-upgrades/native-ios/bc','/upgrades/builderclub'):
         title='LuxBlox Premium';body='<section><h2>'+('Premium активен' if me['isPremium'] else 'Premium')+'</h2><p>Статус сохраняется в аккаунте. Дополнительных игровых преимуществ пока нет.</p>'
         if admin:body+=form('premium','<button>Активировать бесплатно для себя</button>')+form('premium','<label>ID получателя подарка<input name="target" type="number" min="1" required></label><button>Подарить Premium</button>')
@@ -245,7 +240,7 @@ def page(backend,uid,session,path,query,notice=''):
             body='<section>'+form('preferences',''.join('<label><input type="checkbox" name="'+k+'"'+(' checked' if p[k] else '')+'> '+name+'</label>' for k,name in [('friendRequestsEnabled','Принимать заявки в друзья'),('messagesEnabled','Принимать личные сообщения'),('friendNotifications','Уведомления о друзьях'),('messageNotifications','Уведомления о сообщениях'),('inventoryVisible','Открытый инвентарь')])+'<button>Сохранить</button>')+'</section>'
     elif re.fullmatch(r'/users/\d+/profile',path):
         target=int(path.split('/')[2]);u=user(backend,target);title='Профиль'
-        body='<section><img class="avatar" src="/luxblox/avatar/'+str(target)+'.svg" alt="Персонаж"><h2>'+badge(u)+'</h2><p>@'+e(u['name'])+(' · Premium' if u['isPremium'] else '')+'</p></section>'
+        body='<section><h2>'+badge(u)+'</h2><p>@'+e(u['name'])+(' · Premium' if u['isPremium'] else '')+'</p></section>'
     else:title='Раздел LuxBlox';body='<p><a href="/more">Ещё</a></p>'
     notice='<p role="status" class="message">'+e(notice)+'</p>' if notice else ''
     css=STYLE+'''select{width:100%;padding:10px;margin:8px 0}input[type=checkbox]{width:auto}form{margin:10px 0}.tabs{display:flex;flex-wrap:wrap;gap:12px}.cover{width:100%;max-height:260px;object-fit:cover}.avatar{display:block;width:180px;margin:auto}.secondary{background:#69777e}.badge{background:#1687d9;color:#fff;border-radius:50%;padding:1px 5px}.play{display:block;background:#00a65a;color:white;text-align:center;padding:14px;text-decoration:none;border-radius:4px}'''
@@ -279,3 +274,22 @@ def wear_assets(backend,uid,asset_ids):
 def avatar_url(backend,uid):
     revision=hashlib.sha256(json.dumps(avatar(backend,uid),sort_keys=True).encode()).hexdigest()[:16]
     return backend.public_origin+f'/luxblox/avatar/{uid}.png?v={revision}'
+
+
+def native_avatar_fetch(backend,uid):
+    a=avatar(backend,uid)
+    colors=dict(a['bodyColors'])
+    for key,name in [('headColorId','HeadColor'),('torsoColorId','TorsoColor'),('leftArmColorId','LeftArmColor'),('rightArmColorId','RightArmColor'),('leftLegColorId','LeftLegColor'),('rightLegColorId','RightLegColor')]:colors[name]=colors[key]
+    scales=dict(a['scales']);scales.update({k[0].upper()+k[1:]:v for k,v in a['scales'].items()})
+    ids=[asset['id'] for asset in a['assets']]
+    return {'resolvedAvatarType':'R6','playerAvatarType':'R6','accessoryVersionIds':ids,
+            'equippedGearVersionIds':[],'backpackGearVersionIds':[],
+            'assetAndAssetTypeIds':[{'assetId':asset['id'],'assetTypeId':asset['assetType']['id']} for asset in a['assets']],
+            'animationAssetIds':{},'bodyColors':colors,'scales':scales,
+            'bodyColorsUrl':backend.public_origin+f'/Asset/BodyColors.ashx?userId={uid}','emotes':[]}
+
+
+def body_colors_xml(backend,uid):
+    colors=native_avatar_fetch(backend,uid)['bodyColors']
+    props=''.join('<int name="'+key+'">'+str(colors[key])+'</int>' for key in ['HeadColor','TorsoColor','LeftArmColor','RightArmColor','LeftLegColor','RightLegColor'])
+    return ('<roblox version="4"><Item class="BodyColors" referent="BODYCOLORS"><Properties>'+props+'</Properties></Item></roblox>').encode()

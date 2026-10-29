@@ -481,7 +481,7 @@ class Handler(BaseHTTPRequestHandler):
                     "studioAccessToApisAllowed": False, "universeAvatarType": "MorphToR6", "genre": "All"
                 } for g in selected("universeIds", "universeId")]})
             if path == "/v1/games/sorts":
-                return self.reply(200, {"sorts": [{"token": "luxblox", "name": "LuxBlox", "displayName": "LuxBlox"}], "timeFilters": [], "genreFilters": []})
+                return self.reply(200, {"sorts": [{"token": "luxblox", "name": "LuxBlox", "displayName": "LuxBlox", "gameSetTypeId": 1, "gameSetTargetId": 1001, "timeOptionsAvailable": False, "genreOptionsAvailable": False, "numberOfRows": 1, "numberOfGames": 1, "isDefaultSort": True, "tokenExpiryInSeconds": 86400}], "timeFilters": [], "genreFilters": []})
             if path == "/v1/games/list":
                 return self.reply(200, {"games": [{"universeId": g["universeId"],
                     "placeId": g["rootPlaceId"], "name": g["name"], "playerCount": 0,

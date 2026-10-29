@@ -72,3 +72,5 @@ https://luxblox-api.onrender.com — база SQLite эфемерная по р�
 
 - [Друзья, аватар, каталог, настройки и ограничения](docs/webview-social-avatar.md)
 - [План переноса API и подключения игрового сервера](docs/hosting-migration.md)
+
+- [R7: встроенный интерфейс и API 3D-аватара](docs/android-r7.md)
