@@ -219,9 +219,12 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(self.authenticated_post('/friends/v1/users/1/accept-friend-request',{})[0],200)
         self.assertEqual(self.request('GET','/friends/v1/users/2/friends')[1]['data'][0]['id'],1)
         items=self.request('GET','/catalog/v1/search/items/details')[1]['data'];self.assertEqual(items[0]['id'],6001)
+        before_url=self.request('GET','/thumbnails/v1/users/avatar?userIds=2')[1]['data'][0]['imageUrl']
         self.assertEqual(self.authenticated_post('/economy/v1/purchases/products/6001',{})[0],200)
         self.assertEqual(self.authenticated_post('/avatar/v1/avatar/set-wearing-assets',{'assetIds':[6001]})[0],200)
         self.assertEqual(self.request('GET','/avatar/v1/avatar')[1]['assets'][0]['id'],6001)
+        after_url=self.request('GET','/thumbnails/v1/users/avatar?userIds=2')[1]['data'][0]['imageUrl']
+        self.assertNotEqual(before_url,after_url)
         self.assertEqual(self.request('GET','/inventory/v1/users/2/assets/11')[1]['data'][0]['assetId'],6001)
         self.assertIn(b'ShirtTemplate',web('GET','/asset/?id=6001',html=False)[1])
         self.assertTrue(web('GET','/asset/?id=7001',html=False)[1].startswith(b'\x89PNG'))

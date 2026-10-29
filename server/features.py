@@ -274,3 +274,8 @@ def wear_assets(backend,uid,asset_ids):
     if asset_ids:
         color=next(p['color'] for p in SHIRTS if p['id']==asset_ids[0])
         set_avatar(backend,uid,dict(avatar(backend,uid)['bodyColors'],torsoColorId=color))
+
+
+def avatar_url(backend,uid):
+    revision=hashlib.sha256(json.dumps(avatar(backend,uid),sort_keys=True).encode()).hexdigest()[:16]
+    return backend.public_origin+f'/luxblox/avatar/{uid}.png?v={revision}'

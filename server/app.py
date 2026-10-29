@@ -501,7 +501,7 @@ class Handler(BaseHTTPRequestHandler):
             with backend.connect() as db:
                 rows = db.execute("SELECT id FROM users").fetchall()
             return self.reply(200, {"data": [{"targetId": row["id"], "state": "Completed",
-                "imageUrl": backend.public_origin + f"/luxblox/avatar/{row['id']}.png"}
+                "imageUrl": features.avatar_url(backend,row["id"])}
                 for row in rows if str(row["id"]) in ids]})
         if path in ("/", "/healthz") and self.command in ("GET", "HEAD"):
             return self.reply(200, {"service": "LuxBlox", "stage": "experimental-bootstrap", "ok": True})
@@ -560,7 +560,7 @@ class Handler(BaseHTTPRequestHandler):
                 raise ApiError(404, "User not found.")
             return self.reply(200, {"UserId": row["id"], "Username": row["username"],
                 "DisplayName": row["display_name"] or row["username"],
-                "AvatarUri": backend.public_origin + f"/luxblox/avatar/{user_id}.png",
+                "AvatarUri": features.avatar_url(backend,user_id),
                 "AvatarFinal": True, "IsOnline": False, "IsBanned": False, **features.flags(backend,user_id)})
         if self.command in ("GET", "HEAD") and re.fullmatch(r"/v1/users/\d+/(friends|followers|followings)/count", path):
             return self.reply(200, {"count": 0})
