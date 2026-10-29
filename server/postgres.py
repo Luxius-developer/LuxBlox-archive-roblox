@@ -20,7 +20,7 @@ def connect(url):
     if parsed.scheme not in ('postgres', 'postgresql') or not parsed.hostname:
         raise ValueError('DATABASE_URL must be a PostgreSQL connection URL')
     options = dict(row_factory=dict_row, connect_timeout=10,
-                   options='-c statement_timeout=10000', prepare_threshold=None)
+                   prepare_threshold=None)
     if parsed.hostname not in ('localhost', '127.0.0.1', '::1'):
         ca_file = ssl.get_default_verify_paths().cafile
         if not ca_file:
@@ -30,7 +30,13 @@ def connect(url):
     # Keep the original hostname for TLS/SNI; hostaddr selects only transport.
     addresses = socket.getaddrinfo(parsed.hostname, parsed.port or 5432, socket.AF_INET, socket.SOCK_STREAM)
     options['hostaddr'] = addresses[0][4][0]
-    return psycopg.connect(url, **options)
+    connection = psycopg.connect(url, **options)
+    try:
+        connection.execute("SET LOCAL statement_timeout = '10s'")
+    except Exception:
+        connection.close()
+        raise
+    return connection
 
 
 def initialize(connection):
