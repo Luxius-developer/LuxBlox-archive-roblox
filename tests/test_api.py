@@ -76,6 +76,18 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(self.request("POST", "/mobile/pbe", raw="discarded")[0], 200)
         self.assertEqual(self.request("GET", "/v1.1/Counters/Increment?apiKey=not-logged")[0], 200)
 
+    def test_startup_device_version_and_experiments(self):
+        for method in ("GET", "POST"):
+            status, data = self.request(method, "/device/initialize")
+            self.assertEqual(status, 200)
+            self.assertGreater(data["browserTrackerId"], 0)
+            self.assertLess(data["browserTrackerId"], 2**53)
+            self.assertIsNone(data["appDeviceIdentifier"])
+            for path in ("/mobileapi/check-app-version", "/v1/mobile-client-version"):
+                self.assertEqual(self.request(method, path)[1], {"data": {"UpgradeAction": "None"}})
+            self.assertEqual(self.request(method, "/v1/enrollments")[1], {"data": []})
+            self.assertEqual(self.request(method, "/v1/get-enrollments")[1], [])
+
     def test_registration_login_session_and_logout(self):
         credentials = {"username": "Luxius", "password": "test-only-password"}
         status, data = self.authenticated_post("/v2/signup", credentials)

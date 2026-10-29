@@ -1,0 +1,6 @@
+{
+  "api_base": "https://luxblox-api.onrender.com",
+  "package": "dev.luxius.luxblox.test2021",
+  "source_tag": "2021",
+  "profile": "java-bootstrap-only"
+}

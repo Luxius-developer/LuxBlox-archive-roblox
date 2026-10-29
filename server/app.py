@@ -240,6 +240,16 @@ class Handler(BaseHTTPRequestHandler):
             return self.reply(200, backend.settings)
         if path in ("/mobile/pbe", "/client/pbe") and self.command in ("GET", "POST", "HEAD"):
             return self.reply(200)
+        if path == "/device/initialize" and self.command in ("GET", "POST", "HEAD"):
+            # Opaque per-response ID for this experiment; no device fingerprint is stored.
+            return self.reply(200, {"browserTrackerId": secrets.randbelow(2**52) + 1,
+                                    "appDeviceIdentifier": None})
+        if path in ("/mobileapi/check-app-version", "/v1/mobile-client-version") and self.command in ("GET", "POST", "HEAD"):
+            return self.reply(200, {"data": {"UpgradeAction": "None"}})
+        if path == "/v1/enrollments" and self.command in ("GET", "POST", "HEAD"):
+            return self.reply(200, {"data": []})
+        if path == "/v1/get-enrollments" and self.command in ("GET", "POST", "HEAD"):
+            return self.reply(200, [])
         if path == "/v1.1/Counters/Increment" and self.command in ("GET", "POST", "HEAD"):
             return self.reply(200)
         if path == "/v1/users/authenticated" and self.command in ("GET", "HEAD"):
