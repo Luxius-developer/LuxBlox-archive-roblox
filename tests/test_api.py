@@ -83,6 +83,32 @@ class ApiTests(unittest.TestCase):
             self.assertEqual(self.request("HEAD", prefix + name + "/content"), (200, None))
             self.assertEqual(self.request("POST", prefix + name + "/content", {})[0], 404)
 
+    def test_games_namespace_and_legacy_double_slash_urls(self):
+        status, data = self.request("GET", "/games//v1/games/multiget-place-details?placeIds=1001,9999")
+        self.assertEqual(status, 200)
+        self.assertEqual(len(data), 1)
+        self.assertEqual(data[0]["placeId"], 1001)
+        self.assertFalse(data[0]["isPlayable"])
+        self.assertEqual(data[0]["reasonProhibited"], "GameServerNotConfigured")
+        status, listing = self.request("GET", "/games/v1/games/list?sortToken=luxblox")
+        self.assertEqual(status, 200)
+        self.assertEqual(listing["games"][0]["universeId"], 1001)
+        self.assertEqual(self.request("GET", "/games/v1/games?universeIds=9999"), (200, {"data": []}))
+        self.assertEqual(self.request("GET", "/catalog/v1/games/list")[0], 404)
+
+    def test_robux_webview_serves_html_without_payment_actions(self):
+        self.assertEqual(self.request("GET", "/upgrades/robux")[0], 401)
+        self.authenticated_post("/v2/signup", {"username": "WebBalance", "password": "test-password"})
+        conn = http.client.HTTPConnection(*self.server.server_address, timeout=5)
+        try:
+            conn.request("GET", "/upgrades/robux", headers={"Cookie": "; ".join(f"{k}={v}" for k,v in self.cookies.items())})
+            response = conn.getresponse()
+            self.assertEqual(response.status, 200)
+            self.assertTrue(response.getheader("Content-Type").startswith("text/html"))
+            self.assertIn("Покупка Robux пока недоступна", response.read().decode())
+        finally:
+            conn.close()
+
     def test_unknown_routes_are_not_false_success(self):
         self.assertEqual(self.request("GET", "/game/join")[0], 404)
         self.assertEqual(self.request("GET", "/v2/signup")[0], 404)

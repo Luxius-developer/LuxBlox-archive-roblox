@@ -206,14 +206,17 @@ class Handler(BaseHTTPRequestHandler):
                 + ("; Secure" if self.server.backend.secure_cookies else ""))
 
     def reply(self, status, payload=None, headers=()):
-        body = b"" if payload is None else json.dumps(payload, ensure_ascii=False).encode()
+        body = (payload if isinstance(payload, bytes) else
+                b"" if payload is None else json.dumps(payload, ensure_ascii=False).encode())
         self.send_response(status)
-        self.send_header("Content-Type", "application/json; charset=utf-8")
+        self.send_header("Content-Type", next((v for k, v in headers if k.lower() == "content-type"),
+                                             "application/json; charset=utf-8"))
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Cache-Control", "no-store")
         self.send_header("X-Content-Type-Options", "nosniff")
         for name, value in headers:
-            self.send_header(name, value)
+            if name.lower() != "content-type":
+                self.send_header(name, value)
         self.end_headers()
         if self.command != "HEAD":
             self.wfile.write(body)
@@ -277,7 +280,7 @@ class Handler(BaseHTTPRequestHandler):
             self.reply(500, {"errors": [{"code": 0, "message": "Internal server error."}]})
 
     def route(self, url):
-        path = url.path.rstrip("/") or "/"
+        path = re.sub(r"/+", "/", url.path).rstrip("/") or "/"
         # Lua service names are path namespaces on our single Render origin.
         # Keep Java's classic /users/account-info and /realtime/... unchanged.
         namespace, _, tail = path.lstrip("/").partition("/")
@@ -290,6 +293,46 @@ class Handler(BaseHTTPRequestHandler):
                                       or namespace in {"api", "apis", "web", "www"}):
             path = "/" + tail
         backend = self.server.backend
+        if path == "/upgrades/robux" and self.command in ("GET", "HEAD"):
+            backend.current_user(self.cookie_value(SESSION_COOKIE))
+            page = """<!doctype html><html lang="ru"><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>LuxBlox — баланс</title><body style="font:18px sans-serif;padding:24px">
+<h1>LuxBlox</h1><p>Баланс: 0 Robux</p>
+<p>Это тестовая версия. Покупка Robux пока недоступна.</p></body></html>"""
+            return self.reply(200, page.encode(), [("Content-Type", "text/html; charset=utf-8")])
+        if self.command in ("GET", "HEAD") and namespace == "games":
+            catalog = json.loads((ROOT / "places/catalog.json").read_text())["experiences"]
+            query = parse_qs(url.query)
+            def selected(key, field):
+                ids = set(",".join(query.get(key, [])).split(","))
+                return [g for g in catalog if str(g[field]) in ids]
+            if path == "/v1/games/multiget-place-details":
+                return self.reply(200, [{
+                    "placeId": g["rootPlaceId"], "name": g["name"],
+                    "description": g["description"], "url": "", "builder": g["creator"]["name"],
+                    "builderId": g["creator"]["id"], "isPlayable": False,
+                    "reasonProhibited": "GameServerNotConfigured", "universeId": g["universeId"],
+                    "universeRootPlaceId": g["rootPlaceId"], "price": 0, "imageToken": ""
+                } for g in selected("placeIds", "rootPlaceId")])
+            if path == "/v1/games":
+                return self.reply(200, {"data": [{
+                    "id": g["universeId"], "rootPlaceId": g["rootPlaceId"],
+                    "name": g["name"], "description": g["description"], "creator": g["creator"],
+                    "playing": 0, "visits": 0, "maxPlayers": g["maxPlayers"],
+                    "price": None, "allowedGearGenres": [], "allowedGearCategories": [],
+                    "isGenreEnforced": False, "copyingAllowed": False,
+                    "created": "2026-10-29T00:00:00Z", "updated": "2026-10-29T00:00:00Z",
+                    "studioAccessToApisAllowed": False, "universeAvatarType": "MorphToR6", "genre": "All"
+                } for g in selected("universeIds", "universeId")]})
+            if path == "/v1/games/sorts":
+                return self.reply(200, {"sorts": [{"token": "luxblox", "name": "LuxBlox", "displayName": "LuxBlox"}], "timeFilters": [], "genreFilters": []})
+            if path == "/v1/games/list":
+                return self.reply(200, {"games": [{"universeId": g["universeId"],
+                    "placeId": g["rootPlaceId"], "name": g["name"], "playerCount": 0,
+                    "totalUpVotes": 0, "totalDownVotes": 0, "isPlayable": False,
+                    "creatorName": g["creator"]["name"], "creatorId": g["creator"]["id"]
+                } for g in catalog], "nextPageCursor": None})
         if path in ("/", "/healthz") and self.command in ("GET", "HEAD"):
             return self.reply(200, {"service": "LuxBlox", "stage": "experimental-bootstrap", "ok": True})
         if path == "/universal-app-configuration/v1/behaviors/app-policy/content" and self.command in ("GET", "HEAD"):
