@@ -163,6 +163,8 @@ class ApiTests(unittest.TestCase):
     def test_native_avatar_fetch_bodycolors_and_clean_web_surfaces(self):
         import xml.etree.ElementTree as ET
         self.authenticated_post('/v2/signup',{'username':'NativeAvatar','password':'test-password'})
+        self.assertEqual(self.request('GET','/develop')[0],303)
+        self.assertEqual(self.request('GET','/feed')[0],303)
         fetch=self.request('GET','/avatar/v1/avatar-fetch?userId=1&placeId=1001')[1]
         self.assertEqual(fetch['resolvedAvatarType'],'R6')
         self.assertEqual(fetch['bodyColors']['HeadColor'],fetch['bodyColors']['headColorId'])

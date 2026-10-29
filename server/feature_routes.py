@@ -19,6 +19,8 @@ def route(h,path,url,namespace):
     b=h.server.backend;q=parse_qs(url.query);method=h.command
     def reply(status,data=None,headers=()):h.reply(status,data,headers);return True
     def current():return b.current_user(h.cookie_value('.ROBLOSECURITY'))
+    if path in ('/develop','/feed') and method in ('GET','HEAD'):
+        return reply(303,headers=[('Location','/admin' if path=='/develop' else '/games/start?placeid=1001')])
     if path=='/favicon.ico' and method in ('GET','HEAD'):return reply(204)
     if path=='/checkout/unavailable' and method in ('GET','HEAD','POST'):
         return reply(404,'<!doctype html><html lang="ru"><meta charset="utf-8"><title>404</title><h1>404: не найдено</h1><p>Покупка сейчас недоступна. Деньги не списаны.</p><a href="/more">Вернуться</a></html>'.encode(),HTML_HEADERS)
