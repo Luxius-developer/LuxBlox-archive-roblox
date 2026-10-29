@@ -1,4 +1,4 @@
-"""Original implementation. Python 3.10+, no third-party runtime dependencies.
+"""Original implementation. Python 3.10+. PostgreSQL mode uses Psycopg 3; local SQLite stays available.
 
 Use behind a TLS reverse proxy for remote experiments. Client compatibility is
 experimental: HTTP tests do not establish Android end-to-end compatibility.
@@ -19,7 +19,7 @@ from http.cookies import SimpleCookie, CookieError
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from threading import Lock
 from urllib.parse import parse_qs, urlsplit
-from server import realtime
+from server import realtime, postgres
 
 ROOT = Path(__file__).resolve().parent.parent
 LOG = logging.getLogger("luxblox")
@@ -35,8 +35,14 @@ class ApiError(Exception):
 
 
 class Backend:
-    def __init__(self, database, settings, secure_cookies=True):
+    def __init__(self, database, settings, secure_cookies=True, database_url=None):
         self.database = str(database)
+        self.database_url = database_url
+        self.is_postgres = bool(database_url)
+        self.integrity_errors = (sqlite3.IntegrityError,)
+        if self.is_postgres:
+            import psycopg
+            self.integrity_errors = (psycopg.errors.UniqueViolation,)
         self.settings = json.loads(Path(settings).read_text(encoding="utf-8"))
         self.app_policy = json.loads((ROOT / "config/app-policy.json").read_text(encoding="utf-8"))
         values = self.settings.get("applicationSettings")
@@ -47,9 +53,13 @@ class Backend:
         self.realtime_secret = secrets.token_bytes(32)
         self.rate_lock = Lock()
         self.attempts = {}
-        Path(self.database).parent.mkdir(parents=True, exist_ok=True)
+        if not self.is_postgres:
+            Path(self.database).parent.mkdir(parents=True, exist_ok=True)
         with self.connect() as db:
-            db.executescript("""
+            if self.is_postgres:
+                postgres.initialize(db)
+            else:
+                db.executescript("""
                 CREATE TABLE IF NOT EXISTS users (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     username TEXT NOT NULL COLLATE NOCASE UNIQUE,
@@ -64,6 +74,10 @@ class Backend:
 
     @contextmanager
     def connect(self):
+        if self.is_postgres:
+            with postgres.connect(self.database_url) as connection:
+                yield postgres.Connection(connection)
+            return
         db = sqlite3.connect(self.database, timeout=10)
         db.row_factory = sqlite3.Row
         db.execute("PRAGMA foreign_keys=ON")
@@ -100,7 +114,7 @@ class Backend:
         if username.count("_") > 1:
             return 5, "Допустимо не больше одного подчёркивания."
         with self.connect() as db:
-            exists = db.execute("SELECT 1 FROM users WHERE username=?", (username,)).fetchone()
+            exists = db.execute("SELECT 1 FROM users WHERE lower(username)=lower(?)", (username,)).fetchone()
         if exists:
             return 1, "Этот никнейм уже занят."
         return 0, ""
@@ -124,15 +138,18 @@ class Backend:
         digest = self.password_hash(password, salt)
         try:
             with self.connect() as db:
-                cur = db.execute("INSERT INTO users(username,salt,password_hash) VALUES(?,?,?)",
-                                 (username, salt, digest))
-                return {"id": cur.lastrowid, "name": username, "displayName": username}
-        except sqlite3.IntegrityError:
+                query = "INSERT INTO users(username,salt,password_hash) VALUES(?,?,?)"
+                if self.is_postgres:
+                    query += " RETURNING id"
+                cur = db.execute(query, (username, salt, digest))
+                user_id = cur.fetchone()["id"] if self.is_postgres else cur.lastrowid
+                return {"id": user_id, "name": username, "displayName": username}
+        except self.integrity_errors:
             raise ApiError(409, "Username is unavailable.") from None
 
     def login(self, username, password):
         with self.connect() as db:
-            row = db.execute("SELECT * FROM users WHERE username=?", (username,)).fetchone()
+            row = db.execute("SELECT * FROM users WHERE lower(username)=lower(?)", (username,)).fetchone()
         # Run the password KDF even for absent users.
         digest = self.password_hash(password, row["salt"] if row else bytes(16))
         if row is None or not hmac.compare_digest(digest, row["password_hash"]):
@@ -396,7 +413,14 @@ def main():
     if args.insecure_local_cookies and args.host not in ("127.0.0.1", "::1", "localhost"):
         parser.error("Insecure cookies are allowed only with a loopback listener")
     logging.basicConfig(level=logging.INFO, format="%(message)s")
-    backend = Backend(args.database, args.settings, not args.insecure_local_cookies)
+    database_url = os.getenv("DATABASE_URL")
+    if os.getenv("LUXBLOX_REQUIRE_PERSISTENT_DATABASE") == "1" and not database_url:
+        raise RuntimeError("DATABASE_URL is required; refusing temporary account storage")
+    try:
+        backend = Backend(args.database, args.settings, not args.insecure_local_cookies, database_url)
+    except Exception:
+        LOG.error("Database initialization failed; no fallback storage was created")
+        raise RuntimeError("Cannot initialize configured account database") from None
     server = Server((args.host, args.port), backend)
     LOG.info("LuxBlox listening on %s:%s", args.host, args.port)
     try:
@@ -409,3 +433,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
