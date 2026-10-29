@@ -136,6 +136,9 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(self.request("GET", "/my/balance"), (200, {"robux": 800}))
         self.assertEqual(self.request("GET", "/users/account-info")[1]["RobuxBalance"], 800)
         self.assertIn("800 Robux", web("GET", "/upgrades/robux")[2])
+        self.assertEqual(web("POST", "/my/account", {"action":"display_name", "display_name":"New Display", "csrf":csrf})[0], 303)
+        profile = self.request("GET", "/users/v1/users/authenticated")[1]
+        self.assertEqual(self.request("GET", f"/users/v1/users/{profile['id']}")[1]["displayName"], "New Display")
         self.assertEqual(web("POST", "/my/account", form)[0], 400)
         status, _, html = web("GET", "/my/account")
         self.assertEqual(status, 200)

@@ -409,11 +409,13 @@ class Handler(BaseHTTPRequestHandler):
         if self.command in ("GET", "HEAD") and re.fullmatch(r"/v1/users/\d+", path):
             user_id = int(path.rsplit("/", 1)[1])
             with backend.connect() as db:
-                row = db.execute("SELECT id,username FROM users WHERE id=?", (user_id,)).fetchone()
+                row = db.execute("""SELECT users.id, users.username, account_profiles.display_name
+                        FROM users LEFT JOIN account_profiles ON account_profiles.user_id=users.id
+                        WHERE users.id=?""", (user_id,)).fetchone()
             if row is None:
                 raise ApiError(404, "User not found.")
             return self.reply(200, {"id": row["id"], "name": row["username"],
-                                    "displayName": row["username"], "description": "", "isBanned": False})
+                                    "displayName": row["display_name"] or row["username"], "description": "", "isBanned": False})
         if self.command in ("GET", "HEAD") and re.fullmatch(r"/v1/users/\d+/(friends|followers|followings)/count", path):
             return self.reply(200, {"count": 0})
         if self.command in ("GET", "HEAD") and re.fullmatch(r"/v1/users/\d+/(friends|followers|followings)", path):
