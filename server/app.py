@@ -419,7 +419,15 @@ def main():
     try:
         backend = Backend(args.database, args.settings, not args.insecure_local_cookies, database_url)
     except Exception as exc:
-        LOG.error("Database initialization failed (%s); no fallback storage was created", type(exc).__name__)
+        message = str(exc)
+        if database_url:
+            from urllib.parse import unquote
+            parsed = urlsplit(database_url)
+            for secret in (database_url, parsed.password, unquote(parsed.password or ""), parsed.username):
+                if secret:
+                    message = message.replace(secret, "[redacted]")
+        message = re.sub(r"postgres(?:ql)?://[^\\s]+", "[redacted connection URL]", message)
+        LOG.error("Database initialization failed (%s): %s", type(exc).__name__, message[:1500])
         raise RuntimeError("Cannot initialize configured account database") from None
     server = Server((args.host, args.port), backend)
     LOG.info("LuxBlox listening on %s:%s", args.host, args.port)
