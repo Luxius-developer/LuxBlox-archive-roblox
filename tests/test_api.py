@@ -69,6 +69,20 @@ class ApiTests(unittest.TestCase):
                 self.assertTrue(all(isinstance(v, str) for v in data["applicationSettings"].values()))
         self.assertEqual(self.request("GET", "/v1/settings/application?applicationName=../secret")[0], 400)
 
+    def test_universal_app_configuration_returns_content(self):
+        prefix = "/universal-app-configuration/v1/behaviors/"
+        status, policy = self.request("GET", prefix + "app-policy/content")
+        self.assertEqual(status, 200)
+        self.assertTrue(policy["UseBottomBar"])
+        self.assertEqual(policy["Routes"]["auth"]["signup"], "v2/signup")
+        self.assertFalse(policy["OfficialStoreEnabled"])
+        status, patch = self.request("GET", prefix + "app-patch/content")
+        self.assertEqual(status, 200)
+        self.assertEqual(patch, {"SchemeVersion": "1", "CanaryUserIds": [], "CanaryPercentage": 0})
+        for name in ("app-policy", "app-patch"):
+            self.assertEqual(self.request("HEAD", prefix + name + "/content"), (200, None))
+            self.assertEqual(self.request("POST", prefix + name + "/content", {})[0], 404)
+
     def test_unknown_routes_are_not_false_success(self):
         self.assertEqual(self.request("GET", "/game/join")[0], 404)
         self.assertEqual(self.request("GET", "/v2/signup")[0], 404)

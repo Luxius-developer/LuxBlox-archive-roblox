@@ -65,3 +65,12 @@ GET `/signup/is-username-valid?username=...` и
 пользователя (`userId`, `username`, `displayName`, `membershipType=0`) или 401.
 Ответ signup/login также содержит top-level username для классического клиента.
 Изменения серверные; установка новой версии APK для этих исправлений не нужна.
+
+## Конфигурация интерфейса после входа
+
+GET/HEAD `/universal-app-configuration/v1/behaviors/app-policy/content` выдаёт
+корневой объект `config/app-policy.json` (без обёртки applicationSettings).
+GET/HEAD `/universal-app-configuration/v1/behaviors/app-patch/content` выдаёт
+`{"SchemeVersion":"1","CanaryUserIds":[],"CanaryPercentage":0}`. Это отдельные
+обязательные по наблюдаемым запросам настройки после проверки сессии.
+Подробности и ограничения: [post-login-fix.md](post-login-fix.md).

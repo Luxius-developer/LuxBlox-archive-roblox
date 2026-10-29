@@ -1,0 +1,24 @@
+{
+  "UseBottomBar": true,
+  "SystemBarPlacement": "Bottom",
+  "MorePageType": "More",
+  "AboutPageType": "About",
+  "HomeIcon": "LuaApp/icons/ic-roblox-close",
+  "AvatarHeaderIcon": "LuaApp/icons/ic-back",
+  "AccountProviderName": "",
+  "PlatformGroup": "Unknown",
+  "GiftCardsEnabled": false,
+  "OfficialStoreEnabled": false,
+  "EnablePremiumUserFeatures": false,
+  "Notifications": false,
+  "ShowVoiceUpsell": false,
+  "ContactImporterEnabled": false,
+  "PromotionalEmailsCheckboxEnabled": false,
+  "Routes": {
+    "auth": {
+      "connect": "v2/login",
+      "login": "v2/login",
+      "signup": "v2/signup"
+    }
+  }
+}

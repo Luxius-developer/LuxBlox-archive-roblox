@@ -37,6 +37,7 @@ class Backend:
     def __init__(self, database, settings, secure_cookies=True):
         self.database = str(database)
         self.settings = json.loads(Path(settings).read_text(encoding="utf-8"))
+        self.app_policy = json.loads((ROOT / "config/app-policy.json").read_text(encoding="utf-8"))
         values = self.settings.get("applicationSettings")
         if not isinstance(values, dict) or any(not isinstance(v, str) for v in values.values()):
             raise ValueError("applicationSettings must be an object of string values")
@@ -261,6 +262,11 @@ class Handler(BaseHTTPRequestHandler):
         backend = self.server.backend
         if path in ("/", "/healthz") and self.command in ("GET", "HEAD"):
             return self.reply(200, {"service": "LuxBlox", "stage": "experimental-bootstrap", "ok": True})
+        if path == "/universal-app-configuration/v1/behaviors/app-policy/content" and self.command in ("GET", "HEAD"):
+            return self.reply(200, backend.app_policy)
+        if path == "/universal-app-configuration/v1/behaviors/app-patch/content" and self.command in ("GET", "HEAD"):
+            # A valid configuration with no patch rollout, not a missing response.
+            return self.reply(200, {"SchemeVersion": "1", "CanaryUserIds": [], "CanaryPercentage": 0})
         if path in ("/v1/settings/application", "/v2/settings/application") and self.command in ("GET", "POST", "HEAD"):
             query = parse_qs(url.query)
             name = query.get("applicationName", [""])[0]
