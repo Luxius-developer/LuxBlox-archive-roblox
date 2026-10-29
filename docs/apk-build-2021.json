@@ -10,7 +10,7 @@
     "v2",
     "v3"
   ],
-  "phone_tested": false,
+  "phone_tested": true,
   "native_game_ported": false,
   "native_libraries_unchanged": 10,
   "obb_unchanged": true,
@@ -20,5 +20,6 @@
   "signer": "uber-apk-signer 1.3.0",
   "signing_cert_sha256": "50e21a180d5f9ad761be5ac7ff8c233ea502a25fe661dc1b907fe542b4386a90",
   "signature_notes": "v1 verifier warns about META-INF library version metadata; v2/v3 verification succeeds",
-  "backend_commit": "52304b53aa3ee9e4e5d40e8e3c1fbd781e6368cf"
+  "backend_commit": "52304b53aa3ee9e4e5d40e8e3c1fbd781e6368cf",
+  "phone_test_scope": "User confirmed startup and registration form rendering; field validation initially failed with 404. Server validators added; phone retest pending."
 }
