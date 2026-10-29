@@ -418,8 +418,8 @@ def main():
         raise RuntimeError("DATABASE_URL is required; refusing temporary account storage")
     try:
         backend = Backend(args.database, args.settings, not args.insecure_local_cookies, database_url)
-    except Exception:
-        LOG.error("Database initialization failed; no fallback storage was created")
+    except Exception as exc:
+        LOG.error("Database initialization failed (%s); no fallback storage was created", type(exc).__name__)
         raise RuntimeError("Cannot initialize configured account database") from None
     server = Server((args.host, args.port), backend)
     LOG.info("LuxBlox listening on %s:%s", args.host, args.port)
