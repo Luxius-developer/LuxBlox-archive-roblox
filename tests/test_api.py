@@ -8,6 +8,7 @@ from pathlib import Path
 import tempfile
 import threading
 import unittest
+from urllib.parse import urlencode
 
 from server.app import Backend, Server, SESSION_COOKIE
 
@@ -71,6 +72,39 @@ class ApiTests(unittest.TestCase):
     def test_unknown_routes_are_not_false_success(self):
         self.assertEqual(self.request("GET", "/game/join")[0], 404)
         self.assertEqual(self.request("GET", "/v2/signup")[0], 404)
+
+    def test_classic_username_validation_matches_client_codes(self):
+        for username, code in [("Luxius", 0), ("Lux_Blox", 0), ("ab", 3),
+                               ("", 9), ("a b", 6), ("имя", 7), ("_name", 4),
+                               ("name_", 4), ("a_b_c", 5)]:
+            status, data = self.request("GET", "/signup/is-username-valid?" + urlencode({"username": username}))
+            self.assertEqual(status, 200)
+            self.assertEqual(data["ErrorCode"], code)
+            self.assertEqual(data["IsValid"], code == 0)
+            self.assertIsInstance(data["ErrorMessage"], str)
+        self.backend.register("TakenName", "test-password")
+        self.assertEqual(self.request("GET", "/signup/is-username-valid?username=takenname")[1]["ErrorCode"], 1)
+
+    def test_classic_password_validation_and_signup_agree(self):
+        for password, code in [("1234567", 2), ("12345678", 0), ("Luxius123", 3), ("x" * 129, 2)]:
+            url = "/signup/is-password-valid?" + urlencode({"username": "Luxius123", "password": password})
+            status, data = self.request("GET", url)
+            self.assertEqual(status, 200)
+            self.assertEqual(data["ErrorCode"], code)
+            self.assertEqual(data["IsValid"], code == 0)
+        result = self.authenticated_post("/v2/signup", {"username": "Luxius123", "password": "Luxius123"})
+        self.assertEqual(result[0], 400)
+        self.assertEqual(result[1]["errors"][0]["code"], 3)
+
+    def test_classic_account_info_requires_session(self):
+        self.assertEqual(self.request("GET", "/users/account-info")[0], 401)
+        status, data = self.authenticated_post("/v2/signup", {"username": "Profile", "password": "test-password"})
+        self.assertEqual(status, 200)
+        for method in ("GET", "POST"):
+            status, profile = self.request(method, "/users/account-info")
+            self.assertEqual(status, 200)
+            self.assertEqual(profile["userId"], data["userId"])
+            self.assertEqual(profile["username"], "Profile")
 
     def test_telemetry_is_acknowledged_without_storing_data(self):
         self.assertEqual(self.request("POST", "/mobile/pbe", raw="discarded")[0], 200)

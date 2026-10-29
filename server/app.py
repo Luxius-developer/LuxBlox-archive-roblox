@@ -83,11 +83,40 @@ class Backend:
     def password_hash(password, salt):
         return hashlib.scrypt(password.encode(), salt=salt, n=16384, r=8, p=1)
 
+    def validate_username(self, username):
+        if not isinstance(username, str) or not username:
+            return 9, "Введите никнейм."
+        if not 3 <= len(username) <= 20:
+            return 3, "Нужно от 3 до 20 символов."
+        if " " in username:
+            return 6, "Никнейм не должен содержать пробелы."
+        if not re.fullmatch(r"[A-Za-z0-9_]+", username):
+            return 7, "Используйте латинские буквы, цифры и подчёркивание."
+        if username.startswith("_") or username.endswith("_"):
+            return 4, "Подчёркивание не может быть первым или последним символом."
+        if username.count("_") > 1:
+            return 5, "Допустимо не больше одного подчёркивания."
+        with self.connect() as db:
+            exists = db.execute("SELECT 1 FROM users WHERE username=?", (username,)).fetchone()
+        if exists:
+            return 1, "Этот никнейм уже занят."
+        return 0, ""
+
+    @staticmethod
+    def validate_password(username, password):
+        if not isinstance(password, str) or not 8 <= len(password) <= 128:
+            return 2, "Пароль должен содержать от 8 до 128 символов."
+        if username and password.casefold() == username.casefold():
+            return 3, "Пароль должен отличаться от никнейма."
+        return 0, ""
+
     def register(self, username, password):
-        if not re.fullmatch(r"[A-Za-z0-9_]{3,20}", username):
-            raise ApiError(400, "Username must contain 3-20 letters, digits or underscores.")
-        if not 8 <= len(password) <= 128:
-            raise ApiError(400, "Password must contain 8-128 characters.")
+        code, message = self.validate_username(username)
+        if code:
+            raise ApiError(409 if code == 1 else 400, message, code)
+        code, message = self.validate_password(username, password)
+        if code:
+            raise ApiError(400, message, code)
         salt = secrets.token_bytes(16)
         digest = self.password_hash(password, salt)
         try:
@@ -238,6 +267,14 @@ class Handler(BaseHTTPRequestHandler):
             if name != "AndroidApp":
                 raise ApiError(400, "Only applicationName=AndroidApp is supported.")
             return self.reply(200, backend.settings)
+        if path in ("/signup/is-username-valid", "/signup/is-password-valid") and self.command in ("GET", "HEAD"):
+            query = parse_qs(url.query, keep_blank_values=True)
+            username = query.get("username", [""])[0]
+            if path.endswith("is-username-valid"):
+                code, message = backend.validate_username(username)
+            else:
+                code, message = backend.validate_password(username, query.get("password", [""])[0])
+            return self.reply(200, {"IsValid": code == 0, "ErrorCode": code, "ErrorMessage": message})
         if path in ("/mobile/pbe", "/client/pbe") and self.command in ("GET", "POST", "HEAD"):
             return self.reply(200)
         if path == "/device/initialize" and self.command in ("GET", "POST", "HEAD"):
@@ -254,6 +291,10 @@ class Handler(BaseHTTPRequestHandler):
             return self.reply(200)
         if path == "/v1/users/authenticated" and self.command in ("GET", "HEAD"):
             return self.reply(200, backend.current_user(self.cookie_value(SESSION_COOKIE)))
+        if path == "/users/account-info" and self.command in ("GET", "POST", "HEAD"):
+            user = backend.current_user(self.cookie_value(SESSION_COOKIE))
+            return self.reply(200, {**user, "userId": user["id"], "username": user["name"],
+                                    "membershipType": 0})
         if path in ("/v1/login", "/v2/login", "/v2/signup", "/v2/logout") and self.command == "POST":
             if not self.require_csrf():
                 return
@@ -276,7 +317,9 @@ class Handler(BaseHTTPRequestHandler):
                     raise ApiError(400, "Only username login is supported.")
                 user = backend.login(username, password)
             token = backend.session(user["id"])
-            return self.reply(200, {"userId": user["id"], "user": user, "isBanned": False},
+            return self.reply(200, {"userId": user["id"], "username": user["name"],
+                                   "displayName": user["displayName"], "membershipType": 0,
+                                   "user": user, "isBanned": False},
                               [("Set-Cookie", self.cookie_header(SESSION_COOKIE, token, SESSION_TTL))])
         # Unknown requests must stay visible. Never report false success for them.
         raise ApiError(404, "This endpoint has not been implemented in LuxBlox.")
