@@ -1,0 +1,32 @@
+{
+  "package": "com.luxius.luxblox",
+  "versionCode": 972,
+  "base": "r5",
+  "sha256": "0020d35e80eb4889b5618f331916af04e5c66ecc2ad5f72d744dbf54b44493a3",
+  "unchanged_critical_entries": [
+    "classes.dex",
+    "lib/armeabi-v7a/libgojni.so",
+    "lib/armeabi-v7a/libroblox.so",
+    "lib/armeabi-v7a/libtrampoline.so",
+    "lib/armeabi-v7a/libfmod.so",
+    "lib/armeabi-v7a/libyuv_shared.so",
+    "lib/arm64-v8a/libgojni.so",
+    "lib/arm64-v8a/libroblox.so",
+    "lib/arm64-v8a/libtrampoline.so",
+    "lib/arm64-v8a/libfmod.so",
+    "lib/arm64-v8a/libyuv_shared.so"
+  ],
+  "changed_obb_entries": [
+    "ExtraContent/textures/ui/LuaApp/graphic/Auth/logo_white_1x.png",
+    "content/textures/loading/robloxlogo.png"
+  ],
+  "signature_schemes_verified": [
+    "v1",
+    "v2",
+    "v3"
+  ],
+  "zipalign_verified": true,
+  "signing_certificate_sha256": "50e21a180d5f9ad761be5ac7ff8c233ea502a25fe661dc1b907fe542b4386a90",
+  "android_device_verified": false,
+  "native_place_launch_added": false
+}

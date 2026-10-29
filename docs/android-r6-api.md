@@ -13,7 +13,7 @@ The About page's “FMOD от Firelight Studios” label is a third-party audio-
 
 ## Limits
 
-The starter obby remains marked unavailable for native play. This Render service does not include the external RCC game runtime or the separate inbound game-network port needed by this client. A server response or static place thumbnail is not evidence of a playable game session. The current local build environment also has no Android packaging/signing toolchain, so this commit does not produce a new APK or add an in-app “Запустить тестовый плейс” button.
+The starter obby remains marked unavailable for native play. This Render service does not include the external RCC game runtime or the separate inbound game-network port needed by this client. A server response or static place thumbnail is not evidence of a playable game session. The Android packaging toolchain was subsequently restored and an artwork-only r6 APK was built; see android-r6.md. An in-app “Запустить тестовый плейс” button has not been added.
 
 ## Verification
 
