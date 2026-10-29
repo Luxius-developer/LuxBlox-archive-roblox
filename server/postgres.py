@@ -1,5 +1,6 @@
 """PostgreSQL support for the backend's fixed, parameterized SQL queries."""
 import ssl
+import socket
 from urllib.parse import urlsplit
 
 
@@ -25,6 +26,10 @@ def connect(url):
         if not ca_file:
             raise RuntimeError('System CA bundle is required for remote PostgreSQL')
         options.update(sslmode='verify-full', sslrootcert=ca_file)
+    # Render's network may resolve IPv6 even when it has no IPv6 route.
+    # Keep the original hostname for TLS/SNI; hostaddr selects only transport.
+    addresses = socket.getaddrinfo(parsed.hostname, parsed.port or 5432, socket.AF_INET, socket.SOCK_STREAM)
+    options['hostaddr'] = addresses[0][4][0]
     return psycopg.connect(url, **options)
 
 
