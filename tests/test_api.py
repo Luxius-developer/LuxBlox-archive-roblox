@@ -105,9 +105,42 @@ class ApiTests(unittest.TestCase):
             response = conn.getresponse()
             self.assertEqual(response.status, 200)
             self.assertTrue(response.getheader("Content-Type").startswith("text/html"))
-            self.assertIn("Покупка Robux пока недоступна", response.read().decode())
+            self.assertIn("Купить бесплатно", response.read().decode())
         finally:
             conn.close()
+
+    def test_web_wallet_form_csrf_idempotency_and_balance_api(self):
+        import re
+        self.authenticated_post("/v2/signup", {"username": "WebWallet", "password": "test-password"})
+        def web(method, path, body=None):
+            conn = http.client.HTTPConnection(*self.server.server_address, timeout=5)
+            headers = {"Cookie": "; ".join(f"{k}={v}" for k,v in self.cookies.items())}
+            if body is not None:
+                headers["Content-Type"] = "application/x-www-form-urlencoded"
+            try:
+                conn.request(method, path, body=urlencode(body) if body is not None else None, headers=headers)
+                r = conn.getresponse()
+                return r.status, dict(r.getheaders()), r.read().decode()
+            finally:
+                conn.close()
+        status, headers, html = web("GET", "/upgrades/robux")
+        self.assertEqual(status, 200)
+        csrf = re.search(r'name="csrf" value="([a-f0-9]+)"', html)[1]
+        key = re.search(r'name="request_id" value="([a-f0-9]+)"', html)[1]
+        form = {"action": "grant", "amount": "800", "request_id": key}
+        self.assertEqual(web("POST", "/upgrades/robux", form)[0], 403)
+        self.assertEqual(self.request("GET", "/my/balance"), (200, {"robux": 0}))
+        form["csrf"] = csrf
+        self.assertEqual(web("POST", "/upgrades/robux", form)[0], 303)
+        self.assertEqual(web("POST", "/upgrades/robux", form)[0], 303)
+        self.assertEqual(self.request("GET", "/my/balance"), (200, {"robux": 800}))
+        self.assertEqual(self.request("GET", "/users/account-info")[1]["RobuxBalance"], 800)
+        self.assertIn("800 Robux", web("GET", "/upgrades/robux")[2])
+        self.assertEqual(web("POST", "/my/account", form)[0], 400)
+        status, _, html = web("GET", "/my/account")
+        self.assertEqual(status, 200)
+        self.assertIn("Изменить за 500 Robux", html)
+        self.assertNotIn("test-password", html)
 
     def test_unknown_routes_are_not_false_success(self):
         self.assertEqual(self.request("GET", "/game/join")[0], 404)

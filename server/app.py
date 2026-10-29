@@ -19,7 +19,8 @@ from http.cookies import SimpleCookie, CookieError
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from threading import Lock
 from urllib.parse import parse_qs, urlsplit
-from server import realtime, postgres
+from server import realtime, postgres, accounts, account_pages
+from server.errors import ApiError
 
 ROOT = Path(__file__).resolve().parent.parent
 LOG = logging.getLogger("luxblox")
@@ -27,11 +28,6 @@ MAX_BODY = 65536
 SESSION_COOKIE = ".ROBLOSECURITY"
 CSRF_COOKIE = "LUXBLOX-CSRF"
 SESSION_TTL = 86400
-
-
-class ApiError(Exception):
-    def __init__(self, status, message, code=0):
-        self.status, self.message, self.code = status, message, code
 
 
 class Backend:
@@ -71,6 +67,7 @@ class Backend:
                     expires INTEGER NOT NULL
                 );
             """)
+            accounts.initialize(db, self.is_postgres)
 
     @contextmanager
     def connect(self):
@@ -154,7 +151,8 @@ class Backend:
         digest = self.password_hash(password, row["salt"] if row else bytes(16))
         if row is None or not hmac.compare_digest(digest, row["password_hash"]):
             raise ApiError(403, "Incorrect username or password.", 1)
-        return {"id": row["id"], "name": row["username"], "displayName": row["username"]}
+        return {"id": row["id"], "name": row["username"],
+                "displayName": accounts.profile(self, row["id"])["displayName"]}
 
     def session(self, user_id):
         token = secrets.token_urlsafe(48)
@@ -164,14 +162,22 @@ class Backend:
                        (hashlib.sha256(token.encode()).hexdigest(), user_id, int(time.time()) + SESSION_TTL))
         return token
 
-    def current_user(self, token):
+    def current_account(self, token):
         with self.connect() as db:
-            row = db.execute("""SELECT users.id, users.username FROM sessions
-                JOIN users ON users.id=sessions.user_id WHERE token_hash=? AND expires>?""",
+            row = db.execute("""SELECT users.id, users.username, account_profiles.display_name,
+                COALESCE(account_profiles.robux,0) AS robux FROM sessions
+                JOIN users ON users.id=sessions.user_id
+                LEFT JOIN account_profiles ON account_profiles.user_id=users.id
+                WHERE token_hash=? AND expires>?""",
                 (hashlib.sha256(token.encode()).hexdigest(), int(time.time()))).fetchone()
         if row is None:
             raise ApiError(401, "Authentication required.")
-        return {"id": row["id"], "name": row["username"], "displayName": row["username"]}
+        return {"id": row["id"], "name": row["username"], "username": row["username"],
+                "displayName": row["display_name"] or row["username"], "robux": row["robux"]}
+
+    def current_user(self, token):
+        profile = self.current_account(token)
+        return {k: profile[k] for k in ("id", "name", "displayName")}
 
 
 class Server(ThreadingHTTPServer):
@@ -293,14 +299,44 @@ class Handler(BaseHTTPRequestHandler):
                                       or namespace in {"api", "apis", "web", "www"}):
             path = "/" + tail
         backend = self.server.backend
-        if path == "/upgrades/robux" and self.command in ("GET", "HEAD"):
-            backend.current_user(self.cookie_value(SESSION_COOKIE))
-            page = """<!doctype html><html lang="ru"><meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>LuxBlox — баланс</title><body style="font:18px sans-serif;padding:24px">
-<h1>LuxBlox</h1><p>Баланс: 0 Robux</p>
-<p>Это тестовая версия. Покупка Robux пока недоступна.</p></body></html>"""
-            return self.reply(200, page.encode(), [("Content-Type", "text/html; charset=utf-8")])
+        if path in ("/upgrades/robux", "/my/account") and self.command in ("GET", "POST", "HEAD"):
+            session = self.cookie_value(SESSION_COOKIE)
+            profile = backend.current_account(session)
+            csrf = accounts.token(backend, profile["id"], session)
+            page = "robux" if path == "/upgrades/robux" else "account"
+            message, status = "", 200
+            if self.command == "POST":
+                try:
+                    if self.headers.get_content_type() != "application/x-www-form-urlencoded":
+                        raise ApiError(415, "Отправьте форму со страницы аккаунта.")
+                    if self.headers.get("Transfer-Encoding"):
+                        raise ApiError(400, "Некорректный запрос.")
+                    try:
+                        length = int(self.headers.get("Content-Length", "0"))
+                        if not 0 < length <= MAX_BODY:
+                            raise ValueError()
+                        values = parse_qs(self.rfile.read(length).decode(), keep_blank_values=True, max_num_fields=16)
+                        if any(len(v) != 1 for v in values.values()):
+                            raise ValueError()
+                        form = {k: v[0] for k, v in values.items()}
+                    except (ValueError, UnicodeDecodeError):
+                        raise ApiError(400, "Некорректная форма.") from None
+                    if not re.fullmatch(r"[a-f0-9]{64}", form.get("csrf", "")) or not hmac.compare_digest(form.get("csrf", ""), csrf):
+                        raise ApiError(403, "Страница устарела. Откройте её заново и повторите.")
+                    allowed = {"grant"} if page == "robux" else {"display_name", "username", "password"}
+                    if form.get("action") not in allowed:
+                        raise ApiError(400, "Операция недоступна на этой странице.")
+                    backend.rate_limit(self.client_address[0])
+                    accounts.mutate(backend, profile["id"], session, form)
+                    return self.reply(303, headers=[("Location", path + "?saved=1")])
+                except ApiError as exc:
+                    status, message = exc.status, exc.message
+            elif parse_qs(url.query).get("saved") == ["1"]:
+                message = "Изменения сохранены."
+            return self.reply(status, account_pages.render(profile, csrf, page, message, status != 200),
+                              [("Content-Type", "text/html; charset=utf-8"),
+                               ("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'"),
+                               ("Referrer-Policy", "no-referrer")])
         if self.command in ("GET", "HEAD") and namespace == "games":
             catalog = json.loads((ROOT / "places/catalog.json").read_text())["experiences"]
             query = parse_qs(url.query)
@@ -412,8 +448,8 @@ class Handler(BaseHTTPRequestHandler):
                 "areThreeDeeThumbsEnabled": False
             })
         if path in ("/my/balance", "/v1/user/currency") and self.command in ("GET", "HEAD"):
-            backend.current_user(self.cookie_value(SESSION_COOKIE))
-            return self.reply(200, {"robux": 0})
+            user = backend.current_account(self.cookie_value(SESSION_COOKIE))
+            return self.reply(200, {"robux": user["robux"]})
         if path.startswith(realtime.PREFIX + "/") and self.command in ("GET", "POST"):
             user = backend.current_user(self.cookie_value(SESSION_COOKIE))
             query = parse_qs(url.query)
@@ -441,9 +477,9 @@ class Handler(BaseHTTPRequestHandler):
                 return self.reply(200, payload)
             raise ApiError(404, "Realtime operation is not implemented.")
         if path == "/users/account-info" and self.command in ("GET", "POST", "HEAD"):
-            user = backend.current_user(self.cookie_value(SESSION_COOKIE))
+            user = backend.current_account(self.cookie_value(SESSION_COOKIE))
             return self.reply(200, {**user, "userId": user["id"], "username": user["name"],
-                                    "membershipType": 0, "RobuxBalance": 0, "MembershipType": 0})
+                                    "membershipType": 0, "RobuxBalance": user["robux"], "MembershipType": 0})
         if path in ("/v1/login", "/v2/login", "/v2/signup", "/v2/logout") and self.command == "POST":
             if not self.require_csrf():
                 return
