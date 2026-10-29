@@ -3,6 +3,8 @@
     "FFlagEnableRandomRobloxChannelSelection": "False",
     "FFlagEnableJavascriptHybrid2": "True",
     "FFlagDatamodelServicesConnectionFix2": "True",
-    "DFFlagUseBaseUrlNotHardcodedUrl": "True"
+    "DFFlagUseBaseUrlNotHardcodedUrl": "True",
+    "FFlagAvatarExperienceUseInternalBackgroundAsset": "True",
+    "FFlagAvatarExperienceRunSceneFix": "True"
   }
 }

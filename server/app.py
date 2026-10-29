@@ -261,6 +261,17 @@ class Handler(BaseHTTPRequestHandler):
 
     def route(self, url):
         path = url.path.rstrip("/") or "/"
+        # Lua service names are path namespaces on our single Render origin.
+        # Keep Java's classic /users/account-info and /realtime/... unchanged.
+        namespace, _, tail = path.lstrip("/").partition("/")
+        services = {"api", "apis", "auth", "accountsettings", "avatar", "catalog",
+                    "inventory", "chat", "friends", "users", "assetgame", "games",
+                    "groups", "notifications", "presence", "web", "www", "ads",
+                    "followings", "economy", "thumbnails", "premiumfeatures", "locale",
+                    "badges", "metrics", "apis.rcs", "discussions", "contacts", "search", "static"}
+        if namespace in services and (tail.startswith(("v1/", "v2/", "v3/"))
+                                      or namespace in {"api", "apis", "web", "www"}):
+            path = "/" + tail
         backend = self.server.backend
         if path in ("/", "/healthz") and self.command in ("GET", "HEAD"):
             return self.reply(200, {"service": "LuxBlox", "stage": "experimental-bootstrap", "ok": True})
@@ -299,6 +310,18 @@ class Handler(BaseHTTPRequestHandler):
             return self.reply(200)
         if path == "/v1/users/authenticated" and self.command in ("GET", "HEAD"):
             return self.reply(200, backend.current_user(self.cookie_value(SESSION_COOKIE)))
+        if self.command in ("GET", "HEAD") and re.fullmatch(r"/v1/users/\d+", path):
+            user_id = int(path.rsplit("/", 1)[1])
+            with backend.connect() as db:
+                row = db.execute("SELECT id,username FROM users WHERE id=?", (user_id,)).fetchone()
+            if row is None:
+                raise ApiError(404, "User not found.")
+            return self.reply(200, {"id": row["id"], "name": row["username"],
+                                    "displayName": row["username"], "description": "", "isBanned": False})
+        if self.command in ("GET", "HEAD") and re.fullmatch(r"/v1/users/\d+/(friends|followers|followings)/count", path):
+            return self.reply(200, {"count": 0})
+        if self.command in ("GET", "HEAD") and re.fullmatch(r"/v1/users/\d+/(friends|followers|followings)", path):
+            return self.reply(200, {"data": [], "previousPageCursor": None, "nextPageCursor": None})
         if path in ("/my/balance", "/v1/user/currency") and self.command in ("GET", "HEAD"):
             backend.current_user(self.cookie_value(SESSION_COOKIE))
             return self.reply(200, {"robux": 0})

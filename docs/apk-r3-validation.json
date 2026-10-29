@@ -1,0 +1,13 @@
+{
+  "sha256": "b1e727de14a2ddb25dae76e9622a8a5e18d9940b1e75214e8fda85924bd36392",
+  "changed_obb_entries": [
+    "ExtraContent/LuaPackages/AppTempCommon/LuaApp/Http/Url.lua",
+    "ExtraContent/LuaPackages/Packages/_Index/roblox_networking-friends/networking-friends/buildApiSiteUrl.lua",
+    "ExtraContent/LuaPackages/Packages/_Index/roblox_networking-presence/networking-presence/buildApiSiteUrl.lua",
+    "ExtraContent/LuaPackages/Packages/_Index/roblox_networking-users/networking-users/buildApiSiteUrl.lua",
+    "ExtraContent/LuaPackages/Packages/_Index/roblox_url-builder/url-builder/UrlBase.lua",
+    "ExtraContent/scripts/CoreScripts/Modules/InGameMenu/Network/Url.lua"
+  ],
+  "native_libraries_modified": false,
+  "tls_verification_disabled": false
+}

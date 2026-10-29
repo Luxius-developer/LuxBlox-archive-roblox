@@ -119,6 +119,17 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(flags["FFlagEnableJavascriptHybrid2"], "True")
         self.assertEqual(flags["FFlagDatamodelServicesConnectionFix2"], "True")
 
+    def test_lua_path_namespaces_preserve_sessions_and_classic_routes(self):
+        self.authenticated_post("/auth/v2/signup", {"username": "NamespaceTest", "password": "test-password"})
+        user = self.request("GET", "/users/v1/users/authenticated")[1]
+        user_id = user["id"]
+        self.assertEqual(self.request("GET", "/economy/v1/user/currency"), (200, {"robux": 0}))
+        self.assertEqual(self.request("GET", f"/users/v1/users/{user_id}")[1]["name"], "NamespaceTest")
+        self.assertEqual(self.request("GET", f"/friends/v1/users/{user_id}/friends/count"), (200, {"count": 0}))
+        self.assertEqual(self.request("GET", "/users/account-info")[0], 200)
+        self.assertEqual(self.request("GET", "/apis/universal-app-configuration/v1/behaviors/app-policy/content")[0], 200)
+        self.assertEqual(self.request("GET", "/avatar/v1/not-implemented")[0], 404)
+
     def test_classic_username_validation_matches_client_codes(self):
         for username, code in [("Luxius", 0), ("Lux_Blox", 0), ("ab", 3),
                                ("", 9), ("a b", 6), ("имя", 7), ("_name", 4),
