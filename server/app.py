@@ -69,7 +69,7 @@ class Backend:
                 );
             """)
             accounts.initialize(db, self.is_postgres)
-            chat.initialize(db)
+            chat.initialize(db, self.is_postgres)
 
     @contextmanager
     def connect(self):
@@ -310,6 +310,54 @@ class Handler(BaseHTTPRequestHandler):
                                       or namespace in {"api", "apis", "web", "www"}):
             path = "/" + tail
         backend = self.server.backend
+        # The 2021 LuaApp uses chat.roblox.com/v2-style routes. Domain rewriting
+        # places them under /chat/v2 on Render; serve account-scoped data here.
+        if path == "/v2/chat-settings" and self.command in ("GET", "HEAD"):
+            backend.current_user(self.cookie_value(SESSION_COOKIE))
+            return self.reply(200, {"isActiveChatUser": True, "isConnectTabEnabled": False,
+                                    "isChatEnabled": True, "isActive": True})
+        if path in ("/v2/get-user-conversations", "/v2/get-conversations") and self.command in ("GET", "HEAD"):
+            user = backend.current_user(self.cookie_value(SESSION_COOKIE))
+            query = parse_qs(url.query)
+            try:
+                page = int(query.get("pageNumber", ["1"])[0])
+                size = int(query.get("pageSize", ["20"])[0])
+            except ValueError:
+                raise ApiError(400, "Некорректная страница чатов.") from None
+            return self.reply(200, chat.conversations(backend, user["id"], page, size))
+        if path in ("/v2/get-conversation-messages", "/v2/get-messages") and self.command in ("GET", "HEAD"):
+            user = backend.current_user(self.cookie_value(SESSION_COOKIE))
+            query = parse_qs(url.query)
+            try:
+                conversation_id = query.get("conversationId", [""])[0]
+                page = int(query.get("pageNumber", ["1"])[0])
+                size = int(query.get("pageSize", ["50"])[0])
+            except ValueError:
+                raise ApiError(400, "Некорректный запрос сообщений.") from None
+            return self.reply(200, chat.conversation_messages(
+                backend, conversation_id, user["id"], page, size))
+        if path == "/v2/get-unread-conversation-count" and self.command in ("GET", "HEAD"):
+            backend.current_user(self.cookie_value(SESSION_COOKIE))
+            return self.reply(200, {"count": 0})
+        if path == "/v2/start-one-to-one-conversation" and self.command == "POST":
+            user = backend.current_user(self.cookie_value(SESSION_COOKIE))
+            if not self.require_csrf():
+                return
+            body = self.read_json()
+            participant = body.get("participantuserId", body.get("participantUserId"))
+            return self.reply(200, chat.start_conversation(backend, user["id"], participant))
+        if path in ("/v2/send-message", "/v2/send-game-link-message") and self.command == "POST":
+            user = backend.current_user(self.cookie_value(SESSION_COOKIE))
+            if not self.require_csrf():
+                return
+            backend.rate_limit_chat(user["id"])
+            body = self.read_json()
+            text = body.get("message")
+            if path.endswith("send-game-link-message"):
+                text = "Приглашение в игру"
+            message_id = chat.send_to_conversation(
+                backend, body.get("conversationId"), user["id"], text)
+            return self.reply(200, {"messageId": message_id, "id": message_id})
         if path == "/luxblox/chat/messages" and self.command in ("GET", "HEAD"):
             user = backend.current_user(self.cookie_value(SESSION_COOKIE))
             return self.reply(200, {"data": chat.messages(backend, user["id"])})
@@ -352,6 +400,14 @@ class Handler(BaseHTTPRequestHandler):
         if path in ("/help", "/info/about", "/about", "/info/privacy", "/info/terms-of-service") and self.command in ("GET", "HEAD"):
             page = '<!doctype html><html lang="ru"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>LuxBlox</title><body style="font:18px Arial;padding:24px"><h1>LuxBlox</h1><p>Vortix studio · 2010</p><p>Архивный игровой проект LuxBlox. Разделы сервиса находятся на нашем сервере.</p><p>Аккаунты, тестовый баланс и переписка сохраняются в базе LuxBlox.</p></body></html>'
             return self.reply(200, page.encode(), [("Content-Type", "text/html; charset=utf-8")])
+        if self.command in ("GET", "HEAD") and re.fullmatch(r"/static/(?:avatar-default|place-1001)\.png", path):
+            asset = ROOT / "server" / "static" / path.rsplit("/", 1)[-1]
+            try:
+                payload = asset.read_bytes()
+            except OSError:
+                raise ApiError(404, "Image not found.") from None
+            return self.reply(200, payload, [("Content-Type", "image/png"),
+                                              ("Cache-Control", "public, max-age=86400")])
         if path in ("/upgrades/robux", "/my/account") and self.command in ("GET", "POST", "HEAD"):
             session = self.cookie_value(SESSION_COOKIE)
             profile = backend.current_account(session)
@@ -422,6 +478,21 @@ class Handler(BaseHTTPRequestHandler):
                     "totalUpVotes": 0, "totalDownVotes": 0, "isPlayable": False,
                     "creatorName": g["creator"]["name"], "creatorId": g["creator"]["id"]
                 } for g in catalog], "nextPageCursor": None})
+        if self.command in ("GET", "HEAD") and namespace == "thumbnails" and path == "/v1/games/icons":
+            query = parse_qs(url.query)
+            ids = set(",".join(query.get("universeIds", [])).split(","))
+            catalog = json.loads((ROOT / "places/catalog.json").read_text())["experiences"]
+            return self.reply(200, {"data": [{"targetId": g["universeId"], "state": "Completed",
+                "imageUrl": f"https://luxblox-api.onrender.com/static/place-{g['rootPlaceId']}.png"}
+                for g in catalog if str(g["universeId"]) in ids]})
+        if self.command in ("GET", "HEAD") and namespace == "thumbnails" and path == "/v1/users/avatar":
+            query = parse_qs(url.query)
+            ids = set(",".join(query.get("userIds", [])).split(","))
+            with backend.connect() as db:
+                rows = db.execute("SELECT id FROM users").fetchall()
+            return self.reply(200, {"data": [{"targetId": row["id"], "state": "Completed",
+                "imageUrl": "https://luxblox-api.onrender.com/static/avatar-default.png"}
+                for row in rows if str(row["id"]) in ids]})
         if path in ("/", "/healthz") and self.command in ("GET", "HEAD"):
             return self.reply(200, {"service": "LuxBlox", "stage": "experimental-bootstrap", "ok": True})
         if path == "/universal-app-configuration/v1/behaviors/app-policy/content" and self.command in ("GET", "HEAD"):
@@ -469,6 +540,18 @@ class Handler(BaseHTTPRequestHandler):
                 raise ApiError(404, "User not found.")
             return self.reply(200, {"id": row["id"], "name": row["username"],
                                     "displayName": row["display_name"] or row["username"], "description": "", "isBanned": False})
+        if self.command in ("GET", "HEAD") and re.fullmatch(r"/users/\d+/profile", path):
+            user_id = int(path.split("/")[2])
+            with backend.connect() as db:
+                row = db.execute("""SELECT users.id,users.username,account_profiles.display_name
+                    FROM users LEFT JOIN account_profiles ON account_profiles.user_id=users.id
+                    WHERE users.id=?""", (user_id,)).fetchone()
+            if row is None:
+                raise ApiError(404, "User not found.")
+            return self.reply(200, {"UserId": row["id"], "Username": row["username"],
+                "DisplayName": row["display_name"] or row["username"],
+                "AvatarUri": "https://luxblox-api.onrender.com/static/avatar-default.png",
+                "AvatarFinal": True, "IsOnline": False, "IsBanned": False})
         if self.command in ("GET", "HEAD") and re.fullmatch(r"/v1/users/\d+/(friends|followers|followings)/count", path):
             return self.reply(200, {"count": 0})
         if self.command in ("GET", "HEAD") and re.fullmatch(r"/v1/users/\d+/(friends|followers|followings)", path):

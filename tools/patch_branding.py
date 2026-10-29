@@ -9,8 +9,8 @@ import zipfile
 from PIL import Image,ImageOps
 
 
-def png(image,size):
-    canvas=Image.new('RGBA',size,'white')
+def png(image,size,background=None):
+    canvas=Image.new('RGBA',size,background or (0,0,0,0))
     fitted=ImageOps.contain(image,size,Image.Resampling.LANCZOS)
     canvas.alpha_composite(fitted,((size[0]-fitted.width)//2,(size[1]-fitted.height)//2))
     stream=io.BytesIO();canvas.save(stream,format='PNG',optimize=True)
@@ -24,7 +24,18 @@ def patch(root,icon_path,wordmark_path):
     for p in (root/'res').glob('*/*.png'):
         if p.name not in names:continue
         size=Image.open(p).size
-        p.write_bytes(png(wordmark if p.name=='roblox_logo.png' else icon,size));changed.append(str(p.relative_to(root)))
+        if p.name=='ic_launcher_background.png':
+            rendered=Image.new('RGBA',size,(241,243,245,255))
+        elif p.name=='roblox_logo.png':
+            rendered=png(wordmark,size)
+        elif p.name=='ic_launcher_foreground.png':
+            # Adaptive foreground stays transparent; Android supplies its own mask.
+            mark=ImageOps.contain(icon,(int(size[0]*0.74),int(size[1]*0.74)),Image.Resampling.LANCZOS)
+            rendered=Image.new('RGBA',size,(0,0,0,0))
+            rendered.alpha_composite(mark,((size[0]-mark.width)//2,(size[1]-mark.height)//2))
+        else:
+            rendered=png(icon,size,(241,243,245,255))
+        p.write_bytes(rendered);changed.append(str(p.relative_to(root)))
     for n in ('ic_launcher.xml','ic_launcher_round.xml'):
         p=root/'res/mipmap-anydpi-v26'/n
         if p.exists():
@@ -39,7 +50,8 @@ def patch(root,icon_path,wordmark_path):
         # Change visible text only. Keep resource names, class names, JNI and licenses.
         def visible(m):
             value=m[2]
-            if re.search(r'copyright|license|licence|attribution',m[1],re.I):return m[0]
+            # FMOD/Firelight is a third-party engine credit and must remain intact.
+            if re.search(r'copyright|license|licence|attribution|fmod|firelight',m[1]+' '+m[2],re.I):return m[0]
             value=re.sub(r'\b(?:Roblox|Korone|Pekora)\b','LuxBlox',value,flags=re.I)
             return m[1]+value+m[3]
         new=re.sub(r'(<string\b[^>]*>)(.*?)(</string>)',visible,text,flags=re.S)

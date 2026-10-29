@@ -159,6 +159,53 @@ class ApiTests(unittest.TestCase):
         self.authenticated_post("/v2/signup", {"username":"ChatOther", "password":"test-password"})
         self.assertEqual(self.request("GET", "/luxblox/chat/messages"),(200,{"data":[]}))
 
+    def test_legacy_chat_v2_conversation_and_message_routes(self):
+        self.assertEqual(self.request("GET", "/chat/v2/get-user-conversations")[0], 401)
+        self.authenticated_post("/v2/signup", {"username":"LegacyChatA", "password":"test-password"})
+        a_cookies = dict(self.cookies)
+        a_id = self.request("GET", "/users/v1/users/authenticated")[1]["id"]
+        self.authenticated_post("/v2/signup", {"username":"LegacyChatB", "password":"test-password"})
+        b_cookies = dict(self.cookies)
+        b_id = self.request("GET", "/users/v1/users/authenticated")[1]["id"]
+        self.cookies = a_cookies
+        status, created = self.authenticated_post("/chat/v2/start-one-to-one-conversation",
+                                                  {"participantuserId": b_id})
+        self.assertEqual(status, 200, created)
+        conversation_id = created["id"]
+        listing = self.request("GET", "/chat/v2/get-user-conversations?pageNumber=1&pageSize=20")[1]
+        self.assertEqual([c["id"] for c in listing], [conversation_id])
+        status, sent = self.authenticated_post("/chat/v2/send-message", {
+            "conversationId": conversation_id, "message": "hello"})
+        self.assertEqual(status, 200)
+        self.cookies = b_cookies
+        received = self.request("GET", f"/chat/v2/get-conversation-messages?conversationId={conversation_id}")[1]
+        self.assertEqual(received[0]["content"], "hello")
+        self.assertEqual(received[0]["id"], sent["id"])
+        self.assertEqual(self.request("GET", f"/chat/v2/get-conversation-messages?conversationId={conversation_id}")[0], 200)
+        self.authenticated_post("/v2/signup", {"username":"LegacyChatC", "password":"test-password"})
+        self.assertEqual(self.request("GET", f"/chat/v2/get-conversation-messages?conversationId={conversation_id}")[0], 404)
+        self.cookies = a_cookies
+        self.assertEqual(self.request("GET", "/chat/v2/chat-settings")[1]["isChatEnabled"], True)
+
+    def test_legacy_user_profile_and_avatar_thumbnail_contract(self):
+        self.authenticated_post("/v2/signup", {"username":"LegacyProfile", "password":"test-password"})
+        user_id = self.request("GET", "/users/v1/users/authenticated")[1]["id"]
+        profile = self.request("GET", f"/users/{user_id}/profile")[1]
+        self.assertEqual(profile["UserId"], user_id)
+        self.assertEqual(profile["Username"], "LegacyProfile")
+        self.assertTrue(profile["AvatarFinal"])
+        thumb = self.request("GET", f"/thumbnails/v1/users/avatar?userIds={user_id}&size=150x150&format=png")[1]
+        self.assertEqual(thumb["data"][0]["state"], "Completed")
+        conn = http.client.HTTPConnection(*self.server.server_address, timeout=5)
+        try:
+            conn.request("GET", "/static/avatar-default.png")
+            image = conn.getresponse()
+            self.assertEqual(image.status, 200)
+            self.assertEqual(image.getheader("Content-Type"), "image/png")
+            self.assertTrue(image.read().startswith(b"\x89PNG"))
+        finally:
+            conn.close()
+
     def test_unknown_routes_are_not_false_success(self):
         self.assertEqual(self.request("GET", "/game/join")[0], 404)
         self.assertEqual(self.request("GET", "/v2/signup")[0], 404)
