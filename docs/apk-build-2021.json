@@ -1,0 +1,24 @@
+{
+  "apk": "LuxBlox-Test-2021.apk",
+  "bytes": 185348147,
+  "sha256": "39f687be161dab912946ec29bd3275581c6db4ed3c218c99989de7af9c2b1dca",
+  "package": "dev.luxius.luxblox.test2021",
+  "api_base": "https://luxblox-api.onrender.com",
+  "patched_java_methods": 17,
+  "signatures_verified": [
+    "v1",
+    "v2",
+    "v3"
+  ],
+  "phone_tested": false,
+  "native_game_ported": false,
+  "native_libraries_unchanged": 10,
+  "obb_unchanged": true,
+  "source_apk_sha256": "05d05b944b86ee0edcd1b62df819999f67490c8c3f82d451c88dbf2ebbca7d3f",
+  "apktool": "3.0.3",
+  "apktool_jar_sha256": "dbf930b076c6b9be08d57c449cacefc3bdd6b71ebd59b3066fc0e1f5b14f9423",
+  "signer": "uber-apk-signer 1.3.0",
+  "signing_cert_sha256": "50e21a180d5f9ad761be5ac7ff8c233ea502a25fe661dc1b907fe542b4386a90",
+  "signature_notes": "v1 verifier warns about META-INF library version metadata; v2/v3 verification succeeds",
+  "backend_commit": "52304b53aa3ee9e4e5d40e8e3c1fbd781e6368cf"
+}
