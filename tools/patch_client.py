@@ -28,6 +28,7 @@ def endpoint_map(origin):
         "a": host + "/", "b": host + "/", "c": host, "d": base, "f": host,
         "n": base, "o": base, "p": base, "q": base, "G": base, "ac": base,
         "aa": base,
+        "Y": base + "realtime/notifications",
         "Z": base + "v1/settings/application?applicationName=AndroidApp",
         "aj": base + "mobile/pbe",
         "al": base + "v1.1/Counters/Increment/?client=LuxBlox",
@@ -58,6 +59,8 @@ def patch(decoded, origin):
         raise ValueError("Expected one reviewed 2021 URL generator class")
     path = paths[0]
     source, changes = patch_methods(path.read_text(), routes)
+    source = source.replace('"www.pekora.zip/"', '"' + urlsplit(origin).netloc + '/"')
+    source = source.replace("https://en.help.pekora.zip/hc/en-us/articles/212459863", origin.rstrip("/") + "/help")
     manifest = decoded / "AndroidManifest.xml"
     tree = ET.parse(manifest)
     root = tree.getroot()

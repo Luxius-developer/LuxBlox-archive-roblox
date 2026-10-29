@@ -1,0 +1,73 @@
+{
+  "scope": "Static Java and native string inventory; not proof of all runtime destinations",
+  "realtime": "https://luxblox-api.onrender.com/realtime/notifications",
+  "native_redirect_complete": false,
+  "lua_error_fixed": false,
+  "files": [
+    {
+      "file": "smali/com/roblox/client/u.smali",
+      "domains": [
+        "luxblox-api.onrender.com"
+      ]
+    },
+    {
+      "file": "smali/com/roblox/client/c/a.smali",
+      "domains": [
+        "go.pekora.zip"
+      ]
+    },
+    {
+      "file": "smali/com/roblox/client/provider/c.smali",
+      "domains": [
+        "www.pekora.zip"
+      ]
+    },
+    {
+      "file": "smali/com/roblox/client/m/a/a.smali",
+      "domains": [
+        "en.help.pekora.zip",
+        "www.pekora.zip"
+      ]
+    },
+    {
+      "file": "lib/armeabi-v7a/libroblox.so",
+      "domains": [
+        "assetdelivery.pekora.zip",
+        "assetgame.pekora.zip",
+        "c0ak.pekora.zip",
+        "c0cfly.pekora.zip",
+        "c0hw.pekora.zip",
+        "c0ll.pekora.zip",
+        "chat.pekora.zip",
+        "client-telemetry.pekora.zip",
+        "cn.pekora.zip",
+        "developer.pekora.zip",
+        "devforum.pekora.zip",
+        "en.help.pekora.zip",
+        "presence.pekora.zip",
+        "test.public.ecs.pekora.zip",
+        "www.pekora.zip"
+      ]
+    },
+    {
+      "file": "lib/arm64-v8a/libroblox.so",
+      "domains": [
+        "assetdelivery.pekora.zip",
+        "assetgame.pekora.zip",
+        "c0ak.pekora.zip",
+        "c0cfly.pekora.zip",
+        "c0hw.pekora.zip",
+        "c0ll.pekora.zip",
+        "chat.pekora.zip",
+        "client-telemetry.pekora.zip",
+        "cn.pekora.zip",
+        "developer.pekora.zip",
+        "devforum.pekora.zip",
+        "en.help.pekora.zip",
+        "presence.pekora.zip",
+        "test.public.ecs.pekora.zip",
+        "www.pekora.zip"
+      ]
+    }
+  ]
+}
