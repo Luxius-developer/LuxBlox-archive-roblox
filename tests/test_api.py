@@ -87,6 +87,38 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(self.request("GET", "/game/join")[0], 404)
         self.assertEqual(self.request("GET", "/v2/signup")[0], 404)
 
+    def test_zero_currency_is_explicit_and_requires_login(self):
+        for path in ("/my/balance", "/v1/user/currency"):
+            self.assertEqual(self.request("GET", path)[0], 401)
+        self.authenticated_post("/v2/signup", {"username": "BalanceTest", "password": "test-password"})
+        for path in ("/my/balance", "/v1/user/currency"):
+            self.assertEqual(self.request("GET", path), (200, {"robux": 0}))
+        data = self.request("GET", "/users/account-info")[1]
+        self.assertEqual(data["RobuxBalance"], 0)
+        self.assertEqual(data["MembershipType"], 0)
+
+    def test_legacy_signalr_handshake_and_token_isolation(self):
+        prefix = "/realtime/notifications/signalr/"
+        self.assertEqual(self.request("GET", prefix + "negotiate")[0], 401)
+        self.authenticated_post("/v2/signup", {"username": "SignalTest", "password": "test-password"})
+        status, negotiation = self.request("GET", prefix + "negotiate?clientProtocol=1.5")
+        self.assertEqual(status, 200)
+        self.assertFalse(negotiation["TryWebSockets"])
+        self.assertEqual(negotiation["ProtocolVersion"], "1.5")
+        query = urlencode({"transport": "longPolling", "connectionToken": negotiation["ConnectionToken"]})
+        self.assertEqual(self.request("GET", prefix + "connect?" + query), (200, {"C": "0", "M": [], "S": 1}))
+        self.assertEqual(self.request("GET", prefix + "start?" + query), (200, {"Response": "started"}))
+        self.assertEqual(self.request("GET", prefix + "poll?" + query), (200, {"C": "0", "M": []}))
+        self.assertEqual(self.request("GET", prefix + "negotiate?clientProtocol=9")[0], 400)
+        self.assertEqual(self.request("GET", prefix + "connect?transport=longPolling&connectionToken=bad")[0], 403)
+        self.authenticated_post("/v2/signup", {"username": "OtherSignal", "password": "test-password"})
+        self.assertEqual(self.request("GET", prefix + "start?" + query)[0], 403)
+
+    def test_native_interface_configuration_is_present(self):
+        flags = self.request("GET", "/v1/settings/application?applicationName=AndroidApp")[1]["applicationSettings"]
+        self.assertEqual(flags["FFlagEnableJavascriptHybrid2"], "True")
+        self.assertEqual(flags["FFlagDatamodelServicesConnectionFix2"], "True")
+
     def test_classic_username_validation_matches_client_codes(self):
         for username, code in [("Luxius", 0), ("Lux_Blox", 0), ("ab", 3),
                                ("", 9), ("a b", 6), ("имя", 7), ("_name", 4),

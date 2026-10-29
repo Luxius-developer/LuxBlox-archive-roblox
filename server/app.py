@@ -19,6 +19,7 @@ from http.cookies import SimpleCookie, CookieError
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from threading import Lock
 from urllib.parse import parse_qs, urlsplit
+from server import realtime
 
 ROOT = Path(__file__).resolve().parent.parent
 LOG = logging.getLogger("luxblox")
@@ -43,6 +44,7 @@ class Backend:
             raise ValueError("applicationSettings must be an object of string values")
         self.secure_cookies = secure_cookies
         self.csrf_secret = secrets.token_bytes(32)
+        self.realtime_secret = secrets.token_bytes(32)
         self.rate_lock = Lock()
         self.attempts = {}
         Path(self.database).parent.mkdir(parents=True, exist_ok=True)
@@ -297,10 +299,39 @@ class Handler(BaseHTTPRequestHandler):
             return self.reply(200)
         if path == "/v1/users/authenticated" and self.command in ("GET", "HEAD"):
             return self.reply(200, backend.current_user(self.cookie_value(SESSION_COOKIE)))
+        if path in ("/my/balance", "/v1/user/currency") and self.command in ("GET", "HEAD"):
+            backend.current_user(self.cookie_value(SESSION_COOKIE))
+            return self.reply(200, {"robux": 0})
+        if path.startswith(realtime.PREFIX + "/") and self.command in ("GET", "POST"):
+            user = backend.current_user(self.cookie_value(SESSION_COOKIE))
+            query = parse_qs(url.query)
+            action = path[len(realtime.PREFIX) + 1:]
+            if action == "negotiate":
+                protocol = query.get("clientProtocol", ["1.5"])[0]
+                if protocol not in ("1.2", "1.3", "1.4", "1.5"):
+                    raise ApiError(400, "Unsupported legacy SignalR protocol.")
+                return self.reply(200, realtime.negotiate(backend.realtime_secret, user["id"], protocol))
+            token = query.get("connectionToken", [""])[0]
+            if not realtime.valid(backend.realtime_secret, token, user["id"]):
+                raise ApiError(403, "Invalid or expired realtime connection.")
+            if action in ("connect", "reconnect", "poll", "start", "abort"):
+                if query.get("transport", [""])[0] != "longPolling":
+                    raise ApiError(400, "Only longPolling is available.")
+                if action == "start":
+                    return self.reply(200, {"Response": "started"})
+                if action == "abort":
+                    return self.reply(200)
+                if action == "poll":
+                    time.sleep(2)  # Bound request rate while no events exist.
+                payload = {"C": "0", "M": []}
+                if action == "connect":
+                    payload["S"] = 1
+                return self.reply(200, payload)
+            raise ApiError(404, "Realtime operation is not implemented.")
         if path == "/users/account-info" and self.command in ("GET", "POST", "HEAD"):
             user = backend.current_user(self.cookie_value(SESSION_COOKIE))
             return self.reply(200, {**user, "userId": user["id"], "username": user["name"],
-                                    "membershipType": 0})
+                                    "membershipType": 0, "RobuxBalance": 0, "MembershipType": 0})
         if path in ("/v1/login", "/v2/login", "/v2/signup", "/v2/logout") and self.command == "POST":
             if not self.require_csrf():
                 return

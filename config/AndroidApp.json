@@ -1,5 +1,8 @@
 {
   "applicationSettings": {
-    "FFlagEnableRandomRobloxChannelSelection": "False"
+    "FFlagEnableRandomRobloxChannelSelection": "False",
+    "FFlagEnableJavascriptHybrid2": "True",
+    "FFlagDatamodelServicesConnectionFix2": "True",
+    "DFFlagUseBaseUrlNotHardcodedUrl": "True"
   }
 }
