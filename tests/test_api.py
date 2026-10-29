@@ -255,6 +255,20 @@ class ApiTests(unittest.TestCase):
         self.assertNotIn("secret-password", output.getvalue())
         self.assertIn("/mobile/pbe", output.getvalue())
 
+    def test_default_avatar_routes_and_authentication(self):
+        self.assertEqual(self.request("GET", "/avatar/v1/avatar")[0], 401)
+        status, user = self.authenticated_post("/v2/signup", {"username": "AvatarTest", "password": "test-password"})
+        self.assertEqual(status, 200)
+        status, avatar = self.request("GET", "/avatar/v1/avatar")
+        self.assertEqual(status, 200)
+        self.assertEqual(avatar["playerAvatarType"], "R6")
+        self.assertEqual(avatar["assets"], [])
+        self.assertEqual(len(avatar["bodyColors"]), 6)
+        self.assertEqual(self.request("GET", "/avatar/v1/users/" + str(user["userId"]) + "/avatar")[1], avatar)
+        self.assertEqual(self.request("GET", "/avatar/v1/users/999999999/avatar")[0], 404)
+        self.assertFalse(self.request("GET", "/avatar/v1/avatar/metadata")[1]["areThreeDeeThumbsEnabled"])
+
+
 
 if __name__ == "__main__":
     unittest.main()

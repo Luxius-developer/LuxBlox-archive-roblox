@@ -339,6 +339,35 @@ class Handler(BaseHTTPRequestHandler):
             return self.reply(200, {"count": 0})
         if self.command in ("GET", "HEAD") and re.fullmatch(r"/v1/users/\d+/(friends|followers|followings)", path):
             return self.reply(200, {"data": [], "previousPageCursor": None, "nextPageCursor": None})
+        avatar_match = re.fullmatch(r"/v1/users/(\d+)/avatar", path)
+        if self.command in ("GET", "HEAD") and (path == "/v1/avatar" or avatar_match):
+            if avatar_match:
+                with backend.connect() as db:
+                    exists = db.execute("SELECT id FROM users WHERE id=?", (int(avatar_match[1]),)).fetchone()
+                if not exists:
+                    raise ApiError(404, "User not found.")
+            else:
+                backend.current_user(self.cookie_value(SESSION_COOKIE))
+            # Original test avatar: classic R6 body, no external worn assets.
+            return self.reply(200, {
+                "scales": {"height": 1, "width": 1, "head": 1, "depth": 1,
+                           "proportion": 0, "bodyType": 0},
+                "playerAvatarType": "R6",
+                "bodyColors": {"headColorId": 24, "torsoColorId": 23,
+                               "leftArmColorId": 24, "rightArmColorId": 24,
+                               "leftLegColorId": 119, "rightLegColorId": 119},
+                "assets": [], "emotes": []
+            })
+        if path == "/v1/avatar/metadata" and self.command in ("GET", "HEAD"):
+            return self.reply(200, {
+                "enableDefaultClothingMessage": False, "isAvatarScaleEmbeddedInTab": True,
+                "isBodyTypeScaleOutOfTab": True, "scaleHeightIncrement": 0.05,
+                "scaleWidthIncrement": 0.05, "scaleHeadIncrement": 0.05,
+                "scaleProportionIncrement": 0.05, "scaleBodyTypeIncrement": 0.05,
+                "supportProportionAndBodyType": False,
+                "showDefaultClothingMessageOnPageLoad": False,
+                "areThreeDeeThumbsEnabled": False
+            })
         if path in ("/my/balance", "/v1/user/currency") and self.command in ("GET", "HEAD"):
             backend.current_user(self.cookie_value(SESSION_COOKIE))
             return self.reply(200, {"robux": 0})
@@ -441,4 +470,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
