@@ -1,0 +1,131 @@
+{
+  "abis": [
+    "arm64-v8a",
+    "armeabi-v7a"
+  ],
+  "files": [
+    {
+      "path": "classes.dex",
+      "size": 5245864,
+      "sha256": "d355e33cc4c4148314a4707343adf59dc03766d1b8f79443049595a50a1f164f",
+      "relevant_literals": [
+        "/exe/ssl/pekora.zip",
+        "FFlagEnableRandomRobloxChannelSelection",
+        "Unable to write pekora.zip",
+        "applicationSettings",
+        "device/initialize",
+        "go.pekora.zip",
+        "https://en.help.pekora.zip/hc/articles/360000015683",
+        "https://en.help.pekora.zip/hc/articles/360001290106",
+        "https://en.help.pekora.zip/hc/en-us/articles/212459863",
+        "mailto:info@pekora.zip",
+        "mobileapi/check-app-version?appVersion=",
+        "pekora.zip",
+        "pekora.zip up to date",
+        "ready. pekora.zip is ",
+        "v1/login",
+        "v1/mobile-client-version?appVersion=",
+        "v1/settings/application?applicationName=",
+        "v2/login",
+        "v2/settings/application/",
+        "v2/signup",
+        "www.pekora.zip",
+        "www.pekora.zip/"
+      ]
+    },
+    {
+      "path": "lib/arm64-v8a/libfmod.so",
+      "size": 1435864,
+      "sha256": "950c481092947eab7f4f9dcd1caf05e5d270901efa3651d2335d347471437dfa",
+      "legacy_hosts": []
+    },
+    {
+      "path": "lib/arm64-v8a/libgojni.so",
+      "size": 2509160,
+      "sha256": "6ee1f83dc01bd5873852ee17040cc518b28ad46bdd808e8bb7cd43dd2279de75",
+      "legacy_hosts": []
+    },
+    {
+      "path": "lib/arm64-v8a/libroblox.so",
+      "size": 57806872,
+      "sha256": "8420723f4bc4e1682c467047ff0d88680136582486495caef2bff69b8af57f53",
+      "legacy_hosts": [
+        "assetdelivery.pekora.zip",
+        "assetgame.pekora.zip",
+        "c0ak.pekora.zip",
+        "c0cfly.pekora.zip",
+        "c0hw.pekora.zip",
+        "c0ll.pekora.zip",
+        "chat.pekora.zip",
+        "client-telemetry.pekora.zip",
+        "cn.pekora.zip",
+        "developer.pekora.zip",
+        "devforum.pekora.zip",
+        "en.help.pekora.zip",
+        "pekora.zip",
+        "presence.pekora.zip",
+        "test.public.ecs.pekora.zip",
+        "www.pekora.zip"
+      ]
+    },
+    {
+      "path": "lib/arm64-v8a/libtrampoline.so",
+      "size": 5968,
+      "sha256": "13fda812d58a918c86366db8d50e5dfad470b2df32ded308095e35d693c46ae3",
+      "legacy_hosts": []
+    },
+    {
+      "path": "lib/arm64-v8a/libyuv_shared.so",
+      "size": 251728,
+      "sha256": "6a0762cd33e756bca9ff0b6079a188526ba42e1c85c590569c13f2c4cd9d4534",
+      "legacy_hosts": []
+    },
+    {
+      "path": "lib/armeabi-v7a/libfmod.so",
+      "size": 992916,
+      "sha256": "d53a70bcf8f4441dfe4d977800e04a765daaea134ce76514bbfba3d27fd9d138",
+      "legacy_hosts": []
+    },
+    {
+      "path": "lib/armeabi-v7a/libgojni.so",
+      "size": 2270644,
+      "sha256": "0cf845899ee3b905ed6ee1cc7596edb5146ff853865538a87891d30ff8f7ecce",
+      "legacy_hosts": []
+    },
+    {
+      "path": "lib/armeabi-v7a/libroblox.so",
+      "size": 39836076,
+      "sha256": "d7a43c15464af71808a4ad1dc9f47f9da9b12e2db88ea68d3b7f0d85a424597b",
+      "legacy_hosts": [
+        "assetdelivery.pekora.zip",
+        "assetgame.pekora.zip",
+        "c0ak.pekora.zip",
+        "c0cfly.pekora.zip",
+        "c0hw.pekora.zip",
+        "c0ll.pekora.zip",
+        "chat.pekora.zip",
+        "client-telemetry.pekora.zip",
+        "cn.pekora.zip",
+        "developer.pekora.zip",
+        "devforum.pekora.zip",
+        "en.help.pekora.zip",
+        "pekora.zip",
+        "presence.pekora.zip",
+        "test.public.ecs.pekora.zip",
+        "www.pekora.zip"
+      ]
+    },
+    {
+      "path": "lib/armeabi-v7a/libtrampoline.so",
+      "size": 5688,
+      "sha256": "4cabb65587fbe0307564f859ad96532e3d624abfe20cf0ee7226e8a84d89307a",
+      "legacy_hosts": []
+    },
+    {
+      "path": "lib/armeabi-v7a/libyuv_shared.so",
+      "size": 194176,
+      "sha256": "a723b5d0cd6372ff8ae0d1a3cacefd6b9c5ffebbea460b229528b71e1b3c85c8",
+      "legacy_hosts": []
+    }
+  ]
+}

@@ -1,0 +1,157 @@
+import contextlib
+import http.client
+from http.cookies import SimpleCookie
+import io
+import json
+import logging
+from pathlib import Path
+import tempfile
+import threading
+import unittest
+
+from server.app import Backend, Server, SESSION_COOKIE
+
+
+class ApiTests(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.database = Path(self.tmp.name) / "test.sqlite3"
+        self.backend = Backend(self.database, Path(__file__).parents[1] / "config/AndroidApp.json", False)
+        self.server = Server(("127.0.0.1", 0), self.backend)
+        self.worker = threading.Thread(target=self.server.serve_forever, daemon=True)
+        self.worker.start()
+        self.cookies = {}
+        self.token = None
+
+    def tearDown(self):
+        self.server.shutdown()
+        self.server.server_close()
+        self.worker.join()
+        self.tmp.cleanup()
+
+    def request(self, method, path, body=None, raw=None, extra=None):
+        headers = {"Cookie": "; ".join(f"{k}={v}" for k, v in self.cookies.items())}
+        if self.token:
+            headers["X-CSRF-TOKEN"] = self.token
+        if body is not None:
+            raw = json.dumps(body)
+            headers["Content-Type"] = "application/json"
+        headers.update(extra or {})
+        conn = http.client.HTTPConnection(*self.server.server_address, timeout=5)
+        try:
+            conn.request(method, path, body=raw, headers=headers)
+            response = conn.getresponse()
+            status = response.status
+            for key, value in response.getheaders():
+                if key.lower() == "set-cookie":
+                    cookie = SimpleCookie(value)
+                    self.cookies.update({k: v.value for k, v in cookie.items()})
+                if key.lower() == "x-csrf-token":
+                    self.token = value
+            payload = response.read()
+            return status, json.loads(payload) if payload else None
+        finally:
+            conn.close()
+
+    def authenticated_post(self, path, body):
+        result = self.request("POST", path, body)
+        if result[0] == 403 and self.token:
+            result = self.request("POST", path, body)
+        return result
+
+    def test_bootstrap_shape_and_methods(self):
+        for route in ("/v1/settings/application", "/v2/settings/application"):
+            for method in ("GET", "POST"):
+                status, data = self.request(method, route + "?applicationName=AndroidApp")
+                self.assertEqual(status, 200)
+                self.assertIsInstance(data["applicationSettings"], dict)
+                self.assertTrue(all(isinstance(v, str) for v in data["applicationSettings"].values()))
+        self.assertEqual(self.request("GET", "/v1/settings/application?applicationName=../secret")[0], 400)
+
+    def test_unknown_routes_are_not_false_success(self):
+        self.assertEqual(self.request("GET", "/game/join")[0], 404)
+        self.assertEqual(self.request("GET", "/v2/signup")[0], 404)
+
+    def test_telemetry_is_acknowledged_without_storing_data(self):
+        self.assertEqual(self.request("POST", "/mobile/pbe", raw="discarded")[0], 200)
+        self.assertEqual(self.request("GET", "/v1.1/Counters/Increment?apiKey=not-logged")[0], 200)
+
+    def test_registration_login_session_and_logout(self):
+        credentials = {"username": "Luxius", "password": "test-only-password"}
+        status, data = self.authenticated_post("/v2/signup", credentials)
+        self.assertEqual(status, 200)
+        user_id = data["userId"]
+        token = self.cookies[SESSION_COOKIE]
+        self.assertEqual(self.request("GET", "/v1/users/authenticated")[1]["id"], user_id)
+        with self.backend.connect() as db:
+            stored = db.execute("SELECT * FROM users").fetchone()
+            self.assertNotEqual(stored["password_hash"], credentials["password"].encode())
+            self.assertNotEqual(db.execute("SELECT token_hash FROM sessions").fetchone()[0], token)
+        self.assertEqual(self.authenticated_post("/v2/logout", {})[0], 200)
+        self.assertEqual(self.request("GET", "/v1/users/authenticated")[0], 401)
+        status, data = self.authenticated_post("/v2/login", {"ctype": "Username", "cvalue": "luxius", "password": credentials["password"]})
+        self.assertEqual(status, 200)
+        self.assertEqual(data["user"]["id"], user_id)
+        self.assertEqual(self.authenticated_post("/v1/login", {"username": "Luxius", "password": "wrong"})[0], 403)
+        self.assertEqual(self.authenticated_post("/v2/signup", credentials)[0], 409)
+
+    def test_csrf_is_bound_to_cookie(self):
+        body = {"username": "Luxius", "password": "test-password"}
+        self.assertEqual(self.request("POST", "/v2/signup", body)[0], 403)
+        self.cookies.clear()
+        self.assertEqual(self.request("POST", "/v2/signup", body)[0], 403)
+
+    def test_secure_cookie_default(self):
+        self.backend.secure_cookies = True
+        conn = http.client.HTTPConnection(*self.server.server_address)
+        conn.request("POST", "/v2/login")
+        response = conn.getresponse()
+        value = response.getheader("Set-Cookie")
+        self.assertIn("Secure", value)
+        self.assertIn("HttpOnly", value)
+        self.assertIn("SameSite=Lax", value)
+        response.read()
+        conn.close()
+
+    def test_expired_session_and_persistence(self):
+        user = self.backend.register("Persist", "long-test-password")
+        token = self.backend.session(user["id"])
+        reopened = Backend(self.database, Path(__file__).parents[1] / "config/AndroidApp.json")
+        self.assertEqual(reopened.current_user(token)["id"], user["id"])
+        with self.backend.connect() as db:
+            db.execute("UPDATE sessions SET expires=0")
+        self.cookies[SESSION_COOKIE] = token
+        self.assertEqual(self.request("GET", "/v1/users/authenticated")[0], 401)
+
+    def test_bad_json_and_body_limit(self):
+        self.request("POST", "/v2/login", {})  # acquire a CSRF cookie and token
+        self.assertEqual(self.request("POST", "/v2/login", raw="{bad", extra={"Content-Type": "application/json"})[0], 400)
+        self.assertEqual(self.request("POST", "/v2/login", raw="{}", extra={"Content-Length": "70000", "Content-Type": "application/json"})[0], 413)
+        self.assertEqual(self.authenticated_post("/v2/signup", {"username": "ab", "password": "short"})[0], 400)
+
+    def test_rate_limit(self):
+        self.request("POST", "/v2/login", {})
+        for _ in range(20):
+            self.request("POST", "/v2/login", {})
+        self.assertEqual(self.request("POST", "/v2/login", {})[0], 429)
+
+    def test_logs_do_not_contain_query_or_password(self):
+        output = io.StringIO()
+        handler = logging.StreamHandler(output)
+        logger = logging.getLogger("luxblox")
+        previous = logger.level
+        logger.setLevel(logging.INFO)
+        logger.addHandler(handler)
+        try:
+            self.request("GET", "/mobile/pbe?token=secret-query")
+            self.authenticated_post("/v2/login", {"username": "user", "password": "secret-password"})
+        finally:
+            logger.removeHandler(handler)
+            logger.setLevel(previous)
+        self.assertNotIn("secret-query", output.getvalue())
+        self.assertNotIn("secret-password", output.getvalue())
+        self.assertIn("/mobile/pbe", output.getvalue())
+
+
+if __name__ == "__main__":
+    unittest.main()

@@ -1,0 +1,9 @@
+.git
+__pycache__
+data
+upload
+tests
+references
+*.apk
+*.dex
+*.so
