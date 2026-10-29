@@ -36,6 +36,7 @@ def messages(backend, user_id):
 def send(backend, user_id, recipient, text):
     if not isinstance(recipient,str) or len(recipient)>20 or not isinstance(text,str):
         raise ApiError(400,'Укажите username получателя и текст.')
+    from server.features import preferences
     text=text.strip()
     if not 1<=len(text)<=500 or not all(c.isprintable() or c=='\n' for c in text):
         raise ApiError(400,'Сообщение должно содержать от 1 до 500 видимых символов.')
@@ -43,6 +44,8 @@ def send(backend, user_id, recipient, text):
         row=db.execute('SELECT id FROM users WHERE lower(username)=lower(?)',(recipient,)).fetchone()
         if not row:
             raise ApiError(404,'Получатель не найден.')
+        if not preferences(backend,row['id'])['messagesEnabled']:
+            raise ApiError(403,'Получатель отключил личные сообщения.')
         if row['id']==user_id:
             raise ApiError(400,'Укажите username другого пользователя.')
         message_id=secrets.token_hex(16)
@@ -74,7 +77,7 @@ def start_conversation(backend, user_id, participant_id):
         row = db.execute('SELECT id FROM chat_conversations WHERE user_low=? AND user_high=?',
                          (low, high)).fetchone()
         if row is None:
-            db.execute('INSERT INTO chat_conversations(user_low,user_high,created_at) VALUES(?,?,?)',
+            db.execute('INSERT INTO chat_conversations(user_low,user_high,created_at) VALUES(?,?,?) ON CONFLICT(user_low,user_high) DO NOTHING',
                        (low, high, time.time_ns() // 1000))
             row = db.execute('SELECT id FROM chat_conversations WHERE user_low=? AND user_high=?',
                              (low, high)).fetchone()
@@ -138,6 +141,9 @@ def conversation_messages(backend, conversation_id, user_id, page=1, page_size=5
 def send_to_conversation(backend, conversation_id, user_id, text):
     item = conversation(backend, conversation_id, user_id)
     other = next(p for p in item['participants'] if p['id'] != user_id)
+    from server.features import preferences
+    if not preferences(backend,other['id'])['messagesEnabled']:
+        raise ApiError(403,'Получатель отключил личные сообщения.')
     text = _message_text(text)
     return _store_message(backend, user_id, other['id'], text)
 

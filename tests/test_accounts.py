@@ -14,6 +14,7 @@ class AccountTests(unittest.TestCase):
         self.path = Path(self.tmp.name)/'test.sqlite3'
         self.settings = Path(__file__).parents[1]/'config/AndroidApp.json'
         self.backend = Backend(self.path, self.settings, False)
+        self.backend.owner_user_id = 1
         self.user = self.backend.register('WalletUser', 'old-password-123')
         self.session = self.backend.session(self.user['id'])
 

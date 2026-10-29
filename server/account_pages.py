@@ -14,13 +14,20 @@ def render(profile, csrf, page='account', message='', error=False):
     notice = '<p role="status" class="message' + (' error' if error else '') + '">' + e(message) + '</p>' if message else ''
     if page == 'robux':
         title = 'Купить Robux'
-        body = '<p>Бесплатные тестовые Robux для LuxBlox. Настоящие деньги не списываются.</p><div class="offers">'
+        body = '<p>Наборы Robux для LuxBlox. Приём платежей пока отключён.</p><div class="offers">'
         for amount in OFFERS:
-            body += '<section><p class="offer">' + str(amount) + ' Robux<small>0 ₽ · тестовый набор</small></p>' + form('grant', '<input type="hidden" name="amount" value="' + str(amount) + '"><input type="hidden" name="request_id" value="' + secrets.token_hex(16) + '"><button type="submit">Купить бесплатно</button>') + '</section>'
+            owner = profile.get('isOwner',False)
+            price = {80:49,400:199,800:399,1700:699,10000:1500}[amount]
+            body += '<section><p class="offer">' + str(amount) + ' Robux<small>' + ('Бесплатно для владельца' if owner else str(price)+' ₽') + '</small></p>'
+            if owner:
+                body += form('grant', '<input type="hidden" name="amount" value="' + str(amount) + '"><input type="hidden" name="request_id" value="' + secrets.token_hex(16) + '"><button type="submit">Купить бесплатно</button>')
+            else:
+                body += '<a href="/checkout/unavailable">Купить</a>'
+            body += '</section>'
         body += '</div><p class="muted">Баланс хранится в аккаунте LuxBlox. Эти Robux действуют только здесь.</p>'
     else:
         title = 'Информация об учётной записи'
-        body = '<section><h2>Отображаемое имя</h2>' + form('display_name', '<label>Никнейм<input name="display_name" minlength="3" maxlength="20" required value="' + e(profile['displayName']) + '"></label><button>Сохранить бесплатно</button>') + '</section>'
+        body = '<nav><a href="/my/account/security">Безопасность</a> · <a href="/my/account/notifications">Уведомления</a> · <a href="/my/account/billing">Оплата</a> · <a href="/my/account/privacy">Конфиденциальность</a> · <a href="/more">Ещё</a></nav><section><h2>Отображаемое имя</h2>' + form('display_name', '<label>Никнейм<input name="display_name" minlength="3" maxlength="20" required value="' + e(profile['displayName']) + '"></label><button>Сохранить бесплатно</button>') + '</section>'
         body += '<section><h2>Username</h2><p class="muted">Имя для входа. Смена стоит ' + str(USERNAME_COST) + ' Robux.</p>' + form('username', '<label>Новый username<input name="username" minlength="3" maxlength="20" required autocomplete="username" value="' + e(profile['username']) + '"></label><label>Текущий пароль<input type="password" name="current_password" required maxlength="128" autocomplete="current-password"></label><button>Изменить за 500 Robux</button>') + '</section>'
         body += '<section><h2>Пароль</h2>' + form('password', '<label>Текущий пароль<input type="password" name="current_password" required maxlength="128" autocomplete="current-password"></label><label>Новый пароль<input type="password" name="new_password" required minlength="8" maxlength="128" autocomplete="new-password"></label><label>Повторите новый пароль<input type="password" name="confirm_password" required minlength="8" maxlength="128" autocomplete="new-password"></label><button>Изменить пароль</button>') + '</section>'
-    return ('<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>' + title + ' — LuxBlox</title><style>' + STYLE + '</style></head><body><header>LuxBlox<span class="balance">' + e(profile['robux']) + ' Robux</span></header><main><h1>' + title + '</h1>' + notice + body + '</main><script>document.querySelectorAll("form").forEach(function(f){f.addEventListener("submit",function(){f.querySelector("button").disabled=true})})</script></body></html>').encode()
+    return ('<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>' + title + ' — LuxBlox</title><style>' + STYLE + '</style></head><body><header>LuxBlox<span class="balance">' + e(profile['robux']) + ' Robux</span></header><main><h1>' + title + '</h1>' + notice + body + '</main><script>let hash=location.hash.toLowerCase();let target=hash.includes("security")?"security":hash.includes("notification")?"notifications":hash.includes("billing")?"billing":hash.includes("privacy")?"privacy":"";if(target)location.replace("/my/account/"+target);document.querySelectorAll("form").forEach(function(f){f.addEventListener("submit",function(){f.querySelector("button").disabled=true})})</script></body></html>').encode()

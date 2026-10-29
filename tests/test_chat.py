@@ -21,6 +21,6 @@ class ChatTests(unittest.TestCase):
                 with self.assertRaises(ApiError):chat.send(b,a['id'],recipient,body)
             self.assertEqual(len(chat.messages(b,r['id'])),1)
     def test_wallet_has_no_extra_navigation_and_chat_uses_text_nodes(self):
-        page=account_pages.render({'robux':0,'username':'Luxius','displayName':'Luxius'},'csrf').decode()
+        page=account_pages.render({'robux':0,'username':'Luxius','displayName':'Luxius'},'csrf',page='robux').decode()
         self.assertNotIn('<nav>',page)
         self.assertIn('createTextNode',chat.render('csrf').decode())

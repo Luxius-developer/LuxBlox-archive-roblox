@@ -18,6 +18,7 @@ class ApiTests(unittest.TestCase):
         self.tmp = tempfile.TemporaryDirectory()
         self.database = Path(self.tmp.name) / "test.sqlite3"
         self.backend = Backend(self.database, Path(__file__).parents[1] / "config/AndroidApp.json", False)
+        self.backend.owner_user_id = 1
         self.server = Server(("127.0.0.1", 0), self.backend)
         self.worker = threading.Thread(target=self.server.serve_forever, daemon=True)
         self.worker.start()
@@ -158,6 +159,76 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(self.request("GET", "/luxblox/chat/messages")[1]["data"][0]["id"],sent["id"])
         self.authenticated_post("/v2/signup", {"username":"ChatOther", "password":"test-password"})
         self.assertEqual(self.request("GET", "/luxblox/chat/messages"),(200,{"data":[]}))
+
+    def test_web_login_requires_csrf_and_sets_a_session(self):
+        import re
+        self.backend.register('WebSignIn','test-password')
+        self.assertEqual(self.request('GET','/more')[0],303)
+        def form_request(method,body=None):
+            conn=http.client.HTTPConnection(*self.server.server_address,timeout=5)
+            headers={'Cookie':'; '.join(f'{k}={v}' for k,v in self.cookies.items())}
+            if body is not None:headers['Content-Type']='application/x-www-form-urlencoded'
+            try:
+                conn.request(method,'/login',body=urlencode(body) if body is not None else None,headers=headers)
+                r=conn.getresponse()
+                for k,v in r.getheaders():
+                    if k.lower()=='set-cookie':
+                        c=SimpleCookie(v);self.cookies.update({k:v.value for k,v in c.items()})
+                return r.status,r.read()
+            finally:conn.close()
+        status,html=form_request('GET');self.assertEqual(status,200)
+        csrf=re.search(rb'name="csrf" value="([a-f0-9]+)"',html)[1].decode()
+        self.assertEqual(form_request('POST',{'username':'WebSignIn','password':'test-password'})[0],403)
+        self.assertEqual(form_request('POST',{'username':'WebSignIn','password':'test-password','csrf':csrf})[0],303)
+        self.assertEqual(self.request('GET','/users/v1/users/authenticated')[1]['name'],'WebSignIn')
+
+    def test_social_catalog_owner_and_settings_web_flows(self):
+        import re
+        def web(method,path,form=None,html=True):
+            conn=http.client.HTTPConnection(*self.server.server_address,timeout=5)
+            headers={'Cookie':'; '.join(f'{k}={v}' for k,v in self.cookies.items())}
+            if html:headers['Accept']='text/html'
+            if form is not None:headers['Content-Type']='application/x-www-form-urlencoded'
+            try:
+                conn.request(method,path,body=urlencode(form) if form is not None else None,headers=headers)
+                r=conn.getresponse();return r.status,r.read()
+            finally:conn.close()
+        self.authenticated_post('/v2/signup',{'username':'ProjectOwner','password':'owner-password'})
+        owner=dict(self.cookies)
+        status,html=web('GET','/admin');self.assertEqual(status,200)
+        csrf=re.search(rb'name="csrf" value="([a-f0-9]+)"',html)[1].decode()
+        self.assertEqual(web('POST','/admin',{'action':'admin_flags','target':'1','verified':'on','premium':'on'})[0],403)
+        self.assertEqual(web('POST','/admin',{'action':'admin_flags','target':'1','verified':'on','premium':'on','csrf':csrf})[0],303)
+        self.assertTrue(self.request('GET','/users/v1/users/1')[1]['hasVerifiedBadge'])
+        self.assertEqual(self.request('GET','/users/account-info')[1]['MembershipType'],4)
+        self.assertIn('Админ-панель'.encode(),web('GET','/more')[1])
+        for path in ['/users/friends','/my/avatar','/catalog','/users/1/inventory','/my/account/security','/my/account/billing','/my/account/notifications','/premium/membership','/games/1001/Starter-Obby']:
+            self.assertEqual(web('GET',path)[0],200,path)
+        self.authenticated_post('/v2/signup',{'username':'OtherUser','password':'other-password'})
+        other=dict(self.cookies)
+        self.assertEqual(web('GET','/admin')[0],403)
+        status,wallet=web('GET','/upgrades/robux');self.assertNotIn('Купить бесплатно'.encode(),wallet)
+        self.assertIn('1500 ₽'.encode(),wallet)
+        other_csrf=re.search(rb'name="csrf" value="([a-f0-9]+)"',web('GET','/my/account')[1])[1].decode()
+        self.assertEqual(web('POST','/upgrades/robux',{'action':'grant','amount':'10000','request_id':'a'*32,'csrf':other_csrf})[0],403)
+        self.assertEqual(web('GET','/checkout/unavailable')[0],404)
+        self.cookies=owner
+        self.assertEqual(self.authenticated_post('/friends/v1/users/2/request-friendship',{})[0],200)
+        self.cookies=other
+        self.assertEqual(self.request('GET','/friends/v1/my/friends/requests')[1]['data'][0]['id'],1)
+        self.assertEqual(self.authenticated_post('/friends/v1/users/1/accept-friend-request',{})[0],200)
+        self.assertEqual(self.request('GET','/friends/v1/users/2/friends')[1]['data'][0]['id'],1)
+        items=self.request('GET','/catalog/v1/search/items/details')[1]['data'];self.assertEqual(items[0]['id'],6001)
+        self.assertEqual(self.authenticated_post('/economy/v1/purchases/products/6001',{})[0],200)
+        self.assertEqual(self.authenticated_post('/avatar/v1/avatar/set-wearing-assets',{'assetIds':[6001]})[0],200)
+        self.assertEqual(self.request('GET','/avatar/v1/avatar')[1]['assets'][0]['id'],6001)
+        self.assertEqual(self.request('GET','/inventory/v1/users/2/assets/11')[1]['data'][0]['assetId'],6001)
+        self.assertIn(b'ShirtTemplate',web('GET','/asset/?id=6001',html=False)[1])
+        self.assertTrue(web('GET','/asset/?id=7001',html=False)[1].startswith(b'\x89PNG'))
+        self.assertEqual(self.request('PATCH','/games/v1/games/1001/votes',{'isUpVote':True})[0],200)
+        self.assertEqual(self.request('PATCH','/games/v1/games/1001/votes',{'isUpVote':True})[0],200)
+        self.assertEqual(self.request('GET','/games/v1/games/1001/votes')[1]['upVotes'],1)
+        self.assertEqual(self.request('GET','/Game/PlaceLauncher.ashx?placeId=1001')[0],503)
 
     def test_legacy_chat_v2_conversation_and_message_routes(self):
         self.assertEqual(self.request("GET", "/chat/v2/get-user-conversations")[0], 401)

@@ -18,6 +18,7 @@ jobs:
           --health-interval 5s --health-timeout 5s --health-retries 10
     env:
       LUXBLOX_TEST_POSTGRES_URL: postgresql://postgres:local-ci-only@localhost:5432/luxblox_test?sslmode=disable
+      LUXBLOX_FEATURES_POSTGRES_URL: postgresql://postgres:local-ci-only@localhost:5432/luxblox_test?sslmode=disable
     strategy:
       matrix:
         python: ['3.10', '3.12']

@@ -19,7 +19,7 @@ from http.cookies import SimpleCookie, CookieError
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from threading import Lock
 from urllib.parse import parse_qs, urlsplit
-from server import realtime, postgres, accounts, account_pages, chat
+from server import realtime, postgres, accounts, account_pages, chat, features, feature_routes
 from server.errors import ApiError
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -32,6 +32,10 @@ SESSION_TTL = 86400
 
 class Backend:
     def __init__(self, database, settings, secure_cookies=True, database_url=None):
+        self.owner_user_id = int(os.getenv("LUXBLOX_OWNER_USER_ID", "2"))
+        self.public_origin = os.getenv("LUXBLOX_PUBLIC_ORIGIN", "https://luxblox-api.onrender.com").rstrip("/")
+        if not re.fullmatch(r"https://[A-Za-z0-9.-]+(?::[0-9]+)?", self.public_origin):
+            raise ValueError("LUXBLOX_PUBLIC_ORIGIN must be an HTTPS origin")
         self.database = str(database)
         self.database_url = database_url
         self.is_postgres = bool(database_url)
@@ -70,6 +74,7 @@ class Backend:
             """)
             accounts.initialize(db, self.is_postgres)
             chat.initialize(db, self.is_postgres)
+            features.initialize(db)
 
     @contextmanager
     def connect(self):
@@ -184,7 +189,7 @@ class Backend:
         if row is None:
             raise ApiError(401, "Authentication required.")
         return {"id": row["id"], "name": row["username"], "username": row["username"],
-                "displayName": row["display_name"] or row["username"], "robux": row["robux"]}
+                "displayName": row["display_name"] or row["username"], "robux": row["robux"], **features.flags(self,row["id"])}
 
     def current_user(self, token):
         profile = self.current_account(token)
@@ -279,6 +284,9 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         self.handle_api()
 
+    def do_PATCH(self):
+        self.handle_api()
+
     def do_HEAD(self):
         self.handle_api()
 
@@ -302,7 +310,7 @@ class Handler(BaseHTTPRequestHandler):
         # Keep Java's classic /users/account-info and /realtime/... unchanged.
         namespace, _, tail = path.lstrip("/").partition("/")
         services = {"api", "apis", "auth", "accountsettings", "avatar", "catalog",
-                    "inventory", "chat", "friends", "users", "assetgame", "games",
+                    "inventory", "assetdelivery", "chat", "friends", "users", "assetgame", "games",
                     "groups", "notifications", "presence", "web", "www", "ads",
                     "followings", "economy", "thumbnails", "premiumfeatures", "locale",
                     "badges", "metrics", "apis.rcs", "discussions", "contacts", "search", "static"}
@@ -310,6 +318,8 @@ class Handler(BaseHTTPRequestHandler):
                                       or namespace in {"api", "apis", "web", "www"}):
             path = "/" + tail
         backend = self.server.backend
+        if feature_routes.route(self, path, url, namespace):
+            return
         # The 2021 LuaApp uses chat.roblox.com/v2-style routes. Domain rewriting
         # places them under /chat/v2 on Render; serve account-scoped data here.
         if path == "/v2/chat-settings" and self.command in ("GET", "HEAD"):
@@ -398,7 +408,7 @@ class Handler(BaseHTTPRequestHandler):
             return self.reply(status, chat.render(csrf, message, status != 200), [("Content-Type", "text/html; charset=utf-8"),
                 ("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'")])
         if path in ("/help", "/info/about", "/about", "/info/privacy", "/info/terms-of-service") and self.command in ("GET", "HEAD"):
-            page = '<!doctype html><html lang="ru"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>LuxBlox</title><body style="font:18px Arial;padding:24px"><h1>LuxBlox</h1><p>Vortix studio · 2010</p><p>Архивный игровой проект LuxBlox. Разделы сервиса находятся на нашем сервере.</p><p>Аккаунты, тестовый баланс и переписка сохраняются в базе LuxBlox.</p></body></html>'
+            page = '<!doctype html><html lang="ru"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>LuxBlox</title><body style="font:18px Arial;padding:24px"><h1>LuxBlox</h1><p>Vortix studio · 2010</p><p>Архивный игровой проект LuxBlox. Разделы сервиса находятся на нашем сервере.</p><p>Аккаунты, тестовый баланс и переписка сохраняются в базе LuxBlox.</p><p><a href="/more">Ещё: настройки и разделы LuxBlox</a></p></body></html>'
             return self.reply(200, page.encode(), [("Content-Type", "text/html; charset=utf-8")])
         if self.command in ("GET", "HEAD") and re.fullmatch(r"/static/(?:avatar-default|place-1001)\.png", path):
             asset = ROOT / "server" / "static" / path.rsplit("/", 1)[-1]
@@ -475,7 +485,7 @@ class Handler(BaseHTTPRequestHandler):
             if path == "/v1/games/list":
                 return self.reply(200, {"games": [{"universeId": g["universeId"],
                     "placeId": g["rootPlaceId"], "name": g["name"], "playerCount": 0,
-                    "totalUpVotes": 0, "totalDownVotes": 0, "isPlayable": False,
+                    "totalUpVotes": features.votes(backend,g["universeId"])["upVotes"], "totalDownVotes": features.votes(backend,g["universeId"])["downVotes"], "isPlayable": False,
                     "creatorName": g["creator"]["name"], "creatorId": g["creator"]["id"]
                 } for g in catalog], "nextPageCursor": None})
         if self.command in ("GET", "HEAD") and namespace == "thumbnails" and path == "/v1/games/icons":
@@ -483,7 +493,7 @@ class Handler(BaseHTTPRequestHandler):
             ids = set(",".join(query.get("universeIds", [])).split(","))
             catalog = json.loads((ROOT / "places/catalog.json").read_text())["experiences"]
             return self.reply(200, {"data": [{"targetId": g["universeId"], "state": "Completed",
-                "imageUrl": f"https://luxblox-api.onrender.com/static/place-{g['rootPlaceId']}.png"}
+                "imageUrl": f"{backend.public_origin}/static/place-{g['rootPlaceId']}.png"}
                 for g in catalog if str(g["universeId"]) in ids]})
         if self.command in ("GET", "HEAD") and namespace == "thumbnails" and path == "/v1/users/avatar":
             query = parse_qs(url.query)
@@ -491,7 +501,7 @@ class Handler(BaseHTTPRequestHandler):
             with backend.connect() as db:
                 rows = db.execute("SELECT id FROM users").fetchall()
             return self.reply(200, {"data": [{"targetId": row["id"], "state": "Completed",
-                "imageUrl": "https://luxblox-api.onrender.com/static/avatar-default.png"}
+                "imageUrl": backend.public_origin + f"/luxblox/avatar/{row['id']}.png"}
                 for row in rows if str(row["id"]) in ids]})
         if path in ("/", "/healthz") and self.command in ("GET", "HEAD"):
             return self.reply(200, {"service": "LuxBlox", "stage": "experimental-bootstrap", "ok": True})
@@ -550,8 +560,8 @@ class Handler(BaseHTTPRequestHandler):
                 raise ApiError(404, "User not found.")
             return self.reply(200, {"UserId": row["id"], "Username": row["username"],
                 "DisplayName": row["display_name"] or row["username"],
-                "AvatarUri": "https://luxblox-api.onrender.com/static/avatar-default.png",
-                "AvatarFinal": True, "IsOnline": False, "IsBanned": False})
+                "AvatarUri": backend.public_origin + f"/luxblox/avatar/{user_id}.png",
+                "AvatarFinal": True, "IsOnline": False, "IsBanned": False, **features.flags(backend,user_id)})
         if self.command in ("GET", "HEAD") and re.fullmatch(r"/v1/users/\d+/(friends|followers|followings)/count", path):
             return self.reply(200, {"count": 0})
         if self.command in ("GET", "HEAD") and re.fullmatch(r"/v1/users/\d+/(friends|followers|followings)", path):
@@ -617,7 +627,7 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/users/account-info" and self.command in ("GET", "POST", "HEAD"):
             user = backend.current_account(self.cookie_value(SESSION_COOKIE))
             return self.reply(200, {**user, "userId": user["id"], "username": user["name"],
-                                    "membershipType": 0, "RobuxBalance": user["robux"], "MembershipType": 0})
+                                    "membershipType": 4 if user["isPremium"] else 0, "RobuxBalance": user["robux"], "MembershipType": 4 if user["isPremium"] else 0})
         if path in ("/v1/login", "/v2/login", "/v2/signup", "/v2/logout") and self.command == "POST":
             if not self.require_csrf():
                 return

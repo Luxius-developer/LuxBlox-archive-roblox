@@ -3,7 +3,7 @@ import hashlib
 import hmac
 import secrets
 
-OFFERS = (80, 400, 800, 1700)
+OFFERS = (80, 400, 800, 1700, 10000)
 USERNAME_COST = 500
 
 
@@ -24,7 +24,8 @@ def profile(backend, user_id):
         row = db.execute('''SELECT users.username, account_profiles.display_name,
             COALESCE(account_profiles.robux,0) AS robux FROM users
             LEFT JOIN account_profiles ON account_profiles.user_id=users.id WHERE users.id=?''', (user_id,)).fetchone()
-    return {'username': row['username'], 'displayName': row['display_name'] or row['username'], 'robux': row['robux']}
+    from server.features import flags
+    return {'username': row['username'], 'displayName': row['display_name'] or row['username'], 'robux': row['robux'], **flags(backend,user_id)}
 
 
 def token(backend, user_id, session):
@@ -41,6 +42,8 @@ def mutate(backend, user_id, session, form):
         db.execute('INSERT INTO account_profiles(user_id) VALUES(?) ON CONFLICT(user_id) DO NOTHING', (user_id,))
         action = form.get('action', '')
         if action == 'grant':
+            if user_id != backend.owner_user_id:
+                raise ApiError(403, 'Бесплатные Robux доступны только владельцу LuxBlox.')
             try:
                 amount = int(form.get('amount', ''))
             except (ValueError, TypeError):
