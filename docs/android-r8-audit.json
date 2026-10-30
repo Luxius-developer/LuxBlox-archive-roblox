@@ -1,0 +1,25 @@
+{
+  "apk": "LuxBlox-r8.apk",
+  "package": "com.luxius.luxblox",
+  "versionCode": 974,
+  "sha256": "aeddd7ec023f6050f433bbc92e725c31cc79a16b624810b229411665c5f8643b",
+  "size": 124403678,
+  "native_libraries_unchanged": [
+    "lib/arm64-v8a/libyuv_shared.so",
+    "lib/arm64-v8a/libroblox.so",
+    "lib/arm64-v8a/libgojni.so",
+    "lib/arm64-v8a/libtrampoline.so",
+    "lib/arm64-v8a/libfmod.so",
+    "lib/armeabi-v7a/libyuv_shared.so",
+    "lib/armeabi-v7a/libroblox.so",
+    "lib/armeabi-v7a/libgojni.so",
+    "lib/armeabi-v7a/libtrampoline.so",
+    "lib/armeabi-v7a/libfmod.so"
+  ],
+  "ca_files_unchanged": [],
+  "android_device_tested": false,
+  "game_session_verified": false,
+  "obb_entries_changed": [
+    "ExtraContent/models/DataModelPatch/DataModelPatch.rbxm"
+  ]
+}

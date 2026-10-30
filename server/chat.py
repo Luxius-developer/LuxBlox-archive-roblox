@@ -137,7 +137,8 @@ def conversation_messages(backend, conversation_id, user_id, page=1, page_size=5
             (ids[0], ids[1], ids[1], ids[0], page_size, (page - 1) * page_size)).fetchall()
     return [{'id': r['id'], 'messageId': r['id'], 'senderTargetId': r['sender_id'],
              'content': r['body'], 'message': r['body'], 'sent': datetime.fromtimestamp(r['created_at']/1000000,timezone.utc).isoformat().replace('+00:00','Z'),
-             'read': True, 'messageType': 'PlainText',
+             'read': True, 'messageType': 'PlainText', 'senderType':'User',
+             'conversationId':item['id'],'previousMessageId':None,'filteredForReceivers':False,
              'sender': {'id': r['sender_id'], 'name': r['sender']}}
             for r in reversed(rows)]
 

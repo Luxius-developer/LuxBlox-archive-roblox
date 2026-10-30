@@ -95,6 +95,10 @@ def convert(c,encode):
 def append_wrapper(c,w):
     p=c['protos'][c['main']];word=p['code'][-1]
     if (word&255)*203%256!=22 or (word>>16&255)!=2:raise ValueError('Expected one module result')
+    if c['main']!=len(c['protos'])-1:raise ValueError('Expected main proto last')
+    # The v1 loader resolves child prototypes immediately: children must be
+    # serialized before their parent, including this newly injected wrapper.
+    c['protos'].pop()
     result=word>>8&255;so=len(c['strings']);po=len(c['protos']);c['strings']+=w['strings']
     for q in w['protos']:
         for k in q['constants']:
@@ -110,4 +114,6 @@ def append_wrapper(c,w):
     if r+2>254:raise ValueError('Insufficient scratch registers')
     def ins(op,a,b=0,d=0):return (op*227&255)|(a<<8)|(b<<16)|(d<<24)
     p['code'][-1:]=[ins(19,r,child&255,child>>8),ins(6,r+1,result),ins(21,r,2,2),ins(22,r,2)]
-    p['header'][0]=r+2;p['debug']=b'\0\0';return c
+    p['header'][0]=r+2;p['debug']=b'\0\0'
+    c['protos'].append(p);c['main']=len(c['protos'])-1
+    return c

@@ -1,0 +1,5 @@
+_result.setNetworkImpl(function(url)table.insert(REQUESTS,url);return "{}" end,function()return "{}"end)
+local ok,err=pcall(function()_result.GetChatSettings()end)
+assert(#REQUESTS>0,'No native chat request: '..tostring(err))
+assert(REQUESTS[1]=='https://luxblox-api.onrender.com/chat/v2/chat-settings',REQUESTS[1])
+print('Native chat URL:',REQUESTS[1])

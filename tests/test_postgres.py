@@ -10,8 +10,10 @@ from server.app import Backend, ApiError
 @unittest.skipUnless(os.getenv('LUXBLOX_TEST_POSTGRES_URL'), 'PostgreSQL integration URL not configured')
 class PostgresTests(unittest.TestCase):
     def backend(self):
-        return Backend('/unused/sqlite.sqlite3', Path(__file__).parents[1] / 'config/AndroidApp.json',
+        backend=Backend('/unused/sqlite.sqlite3', Path(__file__).parents[1] / 'config/AndroidApp.json',
                        database_url=os.environ['LUXBLOX_TEST_POSTGRES_URL'])
+        self.addCleanup(backend.close)
+        return backend
 
     def test_account_and_session_survive_backend_recreation(self):
         first = self.backend()

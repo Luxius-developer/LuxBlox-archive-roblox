@@ -6,7 +6,7 @@
       "name": "LuxBlox Starter Obby",
       "description": "Небольшой тестовый паркур: старт, десять платформ и финиш.",
       "placeFile": "places/LuxBlox-Starter-Obby.rbxlx",
-      "creator": {"id": 0, "name": "LuxBlox", "type": "User"},
+      "creator": {"id": 2, "name": "Luxius", "type": "User"},
       "maxPlayers": 4,
       "playing": 0,
       "visits": 0,

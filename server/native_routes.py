@@ -9,6 +9,11 @@ def route(h,path,url,namespace):
     b=h.server.backend;q=parse_qs(url.query);method=h.command
     def reply(data):h.reply(200,data);return True
     def me():return b.current_user(h.cookie_value('.ROBLOSECURITY'))
+    if namespace=='games' and path=='/v1/games/game-thumbnail' and method in ('GET','HEAD'):
+        token=q.get('imageToken',[''])[0]
+        if token not in ('1001','luxblox-1001'):raise ApiError(404,'Миниатюра не найдена.')
+        from pathlib import Path
+        h.reply(200,(Path(__file__).parent/'static/place-1001.png').read_bytes(),[('Content-Type','image/png')]);return True
     if namespace=='thumbnails' and path in ('/v1/users/avatar-headshot','/v1/users/avatar-bust') and method in ('GET','HEAD'):
         ids=[int(x) for x in ','.join(q.get('userIds',[])).split(',') if x.isdigit()][:100]
         return reply({'data':[{'targetId':uid,'state':'Completed','imageUrl':f.avatar_url(b,uid)} for uid in ids]})

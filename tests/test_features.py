@@ -15,6 +15,7 @@ class FeatureTests(unittest.TestCase):
         self.url=__import__('os').getenv('LUXBLOX_FEATURES_POSTGRES_URL')
         self.settings=Path(__file__).parents[1]/'config/AndroidApp.json'
         self.b=Backend(self.path,self.settings,False,database_url=self.url)
+        self.addCleanup(self.b.close)
         self.a=self.b.register('O'+secrets.token_hex(6),'owner-password')['id']
         self.c=self.b.register('U'+secrets.token_hex(6),'other-password')['id']
         self.b.owner_user_id=self.a
@@ -39,9 +40,19 @@ class FeatureTests(unittest.TestCase):
         self.assertTrue(f.flags(self.b,self.a)['isOwner'])
         self.assertFalse(f.flags(self.b,new['id'])['isOwner'])
         reopened=Backend(self.path,self.settings,False,database_url=self.url)
+        self.addCleanup(reopened.close)
         reopened.owner_user_id=self.a
         self.assertTrue(f.flags(reopened,self.c)['isPremium'])
         self.assertTrue(f.flags(reopened,self.c)['hasVerifiedBadge'])
+
+    def test_premium_gift_resolves_username_and_service_admin_has_no_wallet_grant(self):
+        f.mutate(self.b,self.a,self.session,{'action':'premium','username':self.other_name.lower()})
+        self.assertTrue(f.flags(self.b,self.c)['isPremium'])
+        with self.b.connect() as db:db.execute('INSERT INTO project_admins(user_id) VALUES(?)',(self.c,))
+        self.assertTrue(f.is_admin(self.b,self.c))
+        f.mutate(self.b,self.c,'qa-session',{'action':'admin_flags','target':str(self.c),'verified':'on'})
+        with self.assertRaises(ApiError):accounts.mutate(self.b,self.c,'qa-session',{'action':'grant','amount':'10000','request_id':secrets.token_hex(16)})
+        with self.assertRaises(ApiError):f.mutate(self.b,self.c,'qa-session',{'action':'premium','username':self.owner_name})
 
     def test_friend_request_requires_recipient_acceptance_and_persists(self):
         f.friend_action(self.b,self.a,self.c,'request')
@@ -50,6 +61,7 @@ class FeatureTests(unittest.TestCase):
         with self.assertRaises(ApiError):f.friend_action(self.b,self.a,self.c,'accept')
         f.friend_action(self.b,self.c,self.a,'accept')
         reopened=Backend(self.path,self.settings,False,database_url=self.url)
+        self.addCleanup(reopened.close)
         reopened.owner_user_id=self.a
         self.assertEqual(f.friends(reopened,self.a)[0]['id'],self.c)
         self.assertEqual(f.friends(reopened,self.c)[0]['id'],self.a)
@@ -69,6 +81,7 @@ class FeatureTests(unittest.TestCase):
         f.mutate(self.b,self.a,self.session,{'action':'wear','item':'9002'})
         self.assertNotEqual(before,f.avatar_png(self.b,self.a))
         reopened=Backend(self.path,self.settings,False,database_url=self.url)
+        self.addCleanup(reopened.close)
         reopened.owner_user_id=self.a
         self.assertEqual(f.avatar(reopened,self.a)['bodyColors']['torsoColorId'],21)
         self.assertEqual(f.avatar(reopened,self.a)['assets'],[])

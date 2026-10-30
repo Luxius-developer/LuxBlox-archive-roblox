@@ -1,6 +1,8 @@
 {
   "api_base": "https://luxblox-api.onrender.com",
-  "package": "dev.luxius.luxblox.test2021",
+  "package": "com.luxius.luxblox",
   "source_tag": "2021",
-  "profile": "java-bootstrap-only"
+  "profile": "native-r8",
+  "versionCode": 974,
+  "release": "android-r8"
 }

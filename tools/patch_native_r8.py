@@ -48,6 +48,14 @@ def patch_script(raw,index,name,compiler):
     if index==3522:
         append_wrapper(c,compile_wrapper(compiler,(Path(__file__).parent/'native_more.lua').read_text()))
         changes.append(['MorePageSettings','native groups','explicit admin and game-launch tiles'])
+    if index in (2952,4877):
+        for p in c['protos']:
+            for k in p['constants']:
+                if k[0]!=3:continue
+                old=c['strings'][k[1]-1].decode();new=old
+                if index==4877:new=old.replace('https://games.roblox.com/',ORIGIN+'/games/')
+                if index==2952:new=old.replace('http://www.roblox.com/asset/?id=',ORIGIN+'/asset/?id=')
+                if old!=new:k[1]=add_string(c,new);changes.append(['native resource URL',old,new])
     if re.fullmatch(r'[a-z]{2}(?:-[a-z]+)?',name) and b'CommonUI.Features.Label.FMODCredits' in c['strings']:
         source='local t=...;t["CommonUI.Features.Label.CreateGames"]="Админ-панель";t["CommonUI.Features.Label.MyFeed"]="Запустить 3D-плейс";t["CommonUI.Features.Label.FMODCredits"]="";return t'
         append_wrapper(c,compile_wrapper(compiler,source));changes.append(['locale','labels and footer','native labels; attribution at /info/licenses'])
@@ -78,7 +86,7 @@ def patch_model(data,compiler):
                 updated=p[:j]
                 for i in range(counts[cid]):
                     blob,j=read_string(p,j);name=names[cid][i]
-                    if blob and (i in (4166,4569,5086,3522) or re.fullmatch(r'[a-z]{2}(?:-[a-z]+)?',name)):
+                    if blob and (i in (4166,4569,5086,3522,2952,4877) or re.fullmatch(r'[a-z]{2}(?:-[a-z]+)?',name)):
                         new,changes=patch_script(unpack_script(blob),i,name,compiler)
                         if changes:
                             blob=pack_script(new);assert unpack_script(blob)==new

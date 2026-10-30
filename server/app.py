@@ -362,7 +362,8 @@ class Handler(BaseHTTPRequestHandler):
                 return
             body = self.read_json()
             participant = body.get("participantuserId", body.get("participantUserId"))
-            return self.reply(200, chat.start_conversation(backend, user["id"], participant))
+            conversation=chat.start_conversation(backend, user["id"], participant)
+            return self.reply(200, {**conversation,'resultType':'Success','conversation':conversation})
         if path in ("/v2/send-message", "/v2/send-game-link-message") and self.command == "POST":
             user = backend.current_user(self.cookie_value(SESSION_COOKIE))
             if not self.require_csrf():
@@ -374,7 +375,11 @@ class Handler(BaseHTTPRequestHandler):
                 text = "Приглашение в игру"
             message_id = chat.send_to_conversation(
                 backend, body.get("conversationId"), user["id"], text)
-            return self.reply(200, {"messageId": message_id, "id": message_id})
+            from datetime import datetime,timezone
+            return self.reply(200, {"messageId": message_id, "id": message_id,
+                'conversationId':int(body['conversationId']), 'senderTargetId':user['id'],
+                'content':text, 'filteredForReceivers':False, 'messageType':'PlainText',
+                'sent':datetime.now(timezone.utc).isoformat().replace('+00:00','Z'), 'resultType':'Success'})
         if path == "/luxblox/chat/messages" and self.command in ("GET", "HEAD"):
             user = backend.current_user(self.cookie_value(SESSION_COOKIE))
             return self.reply(200, {"data": chat.messages(backend, user["id"])})
@@ -463,7 +468,7 @@ class Handler(BaseHTTPRequestHandler):
                               [("Content-Type", "text/html; charset=utf-8"),
                                ("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'"),
                                ("Referrer-Policy", "no-referrer")])
-        if self.command in ("GET", "HEAD") and (namespace == "games" or path.startswith('/v1/games')):
+        if self.command in ("GET", "HEAD") and (namespace == "games" or namespace=='v1' and path.startswith('/v1/games')):
             catalog = json.loads((ROOT / "places/catalog.json").read_text())["experiences"]
             query = parse_qs(url.query)
             def selected(key, field):
@@ -492,6 +497,7 @@ class Handler(BaseHTTPRequestHandler):
             if path == "/v1/games/list":
                 return self.reply(200, {"games": [{"universeId": g["universeId"],
                     "placeId": g["rootPlaceId"], "name": g["name"], "playerCount": 0,
+                    "imageToken":"luxblox-1001", "creatorType":"User", "price":0,
                     "totalUpVotes": features.votes(backend,g["universeId"])["upVotes"], "totalDownVotes": features.votes(backend,g["universeId"])["downVotes"], "isPlayable": False,
                     "creatorName": g["creator"]["name"], "creatorId": g["creator"]["id"]
                 } for g in catalog], "nextPageCursor": None})
@@ -700,6 +706,7 @@ def main():
         pass
     finally:
         server.server_close()
+        backend.close()
 
 
 if __name__ == "__main__":

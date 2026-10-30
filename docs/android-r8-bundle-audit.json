@@ -1,0 +1,375 @@
+{
+  "modules": [
+    {
+      "index": 2952,
+      "module": "AvatarViewportFrame",
+      "changes": [
+        [
+          "native resource URL",
+          "http://www.roblox.com/asset/?id=",
+          "https://luxblox-api.onrender.com/asset/?id="
+        ]
+      ],
+      "sha256": "c539108756189c540050ba0930da0e084f57db6a231006fad50192b939b6e4f4"
+    },
+    {
+      "index": 3446,
+      "module": "de-de",
+      "changes": [
+        [
+          "locale",
+          "labels and footer",
+          "native labels; attribution at /info/licenses"
+        ]
+      ],
+      "sha256": "86936fc14882cf225efefb2c0c685a415a3eb9dac08300076c59776a727884b2"
+    },
+    {
+      "index": 3448,
+      "module": "en-us",
+      "changes": [
+        [
+          "locale",
+          "labels and footer",
+          "native labels; attribution at /info/licenses"
+        ]
+      ],
+      "sha256": "24d1afb43646de38b1e1edc8aa0bc4015de54555ab15900d71d2f2a2340c09c2"
+    },
+    {
+      "index": 3449,
+      "module": "es-es",
+      "changes": [
+        [
+          "locale",
+          "labels and footer",
+          "native labels; attribution at /info/licenses"
+        ]
+      ],
+      "sha256": "287338a9ac008e9208eb0cc8ea063773e8646c266b52ecc56f4dbdb76ff779e8"
+    },
+    {
+      "index": 3453,
+      "module": "fr-fr",
+      "changes": [
+        [
+          "locale",
+          "labels and footer",
+          "native labels; attribution at /info/licenses"
+        ]
+      ],
+      "sha256": "80f67d07b64abda34fe742ddc1667af1c1c86b7b60bc83360aef1f46d92405e8"
+    },
+    {
+      "index": 3457,
+      "module": "id-id",
+      "changes": [
+        [
+          "locale",
+          "labels and footer",
+          "native labels; attribution at /info/licenses"
+        ]
+      ],
+      "sha256": "297192609efda7aae57da58bd5ac5c9272867d5808c98847c19d8cc675177b80"
+    },
+    {
+      "index": 3458,
+      "module": "it-it",
+      "changes": [
+        [
+          "locale",
+          "labels and footer",
+          "native labels; attribution at /info/licenses"
+        ]
+      ],
+      "sha256": "ea1f9db19e6b6775e6b1e08697c63bb4457bc6cf75837b976adc42212833a8d2"
+    },
+    {
+      "index": 3459,
+      "module": "ja-jp",
+      "changes": [
+        [
+          "locale",
+          "labels and footer",
+          "native labels; attribution at /info/licenses"
+        ]
+      ],
+      "sha256": "724c734ab566218d8edd7b9606e168e2e5e077c33bb7134507dd15e5534d7f62"
+    },
+    {
+      "index": 3463,
+      "module": "ko-kr",
+      "changes": [
+        [
+          "locale",
+          "labels and footer",
+          "native labels; attribution at /info/licenses"
+        ]
+      ],
+      "sha256": "1fb0280b9bb2423d545f959695923edb0cc33421c54a6a5c95bf23a94a50aeb6"
+    },
+    {
+      "index": 3471,
+      "module": "pt-br",
+      "changes": [
+        [
+          "locale",
+          "labels and footer",
+          "native labels; attribution at /info/licenses"
+        ]
+      ],
+      "sha256": "28aff7fefab0e111c6a93a8c2aa54942a86ca25c4b104fbd8fc18f4f1f5fdfa3"
+    },
+    {
+      "index": 3473,
+      "module": "ru-ru",
+      "changes": [
+        [
+          "locale",
+          "labels and footer",
+          "native labels; attribution at /info/licenses"
+        ]
+      ],
+      "sha256": "5b712972a25abd67d5bd8f96d0f49a03d8326a2bf335c79052a03ec003936800"
+    },
+    {
+      "index": 3480,
+      "module": "th-th",
+      "changes": [
+        [
+          "locale",
+          "labels and footer",
+          "native labels; attribution at /info/licenses"
+        ]
+      ],
+      "sha256": "e17f976bb30a20ca6362c046f17ef7d0cb7150d90818c27aeaf2d7f29de9ff7c"
+    },
+    {
+      "index": 3481,
+      "module": "tr-tr",
+      "changes": [
+        [
+          "locale",
+          "labels and footer",
+          "native labels; attribution at /info/licenses"
+        ]
+      ],
+      "sha256": "b89bb793dbec6ca8d512ab7c33ac79d0e0c1be744e486ca0b8f92af2335635ff"
+    },
+    {
+      "index": 3483,
+      "module": "vi-vn",
+      "changes": [
+        [
+          "locale",
+          "labels and footer",
+          "native labels; attribution at /info/licenses"
+        ]
+      ],
+      "sha256": "08dbb5b0e61b1404aa5a0f5cdddb1a8b53df6162cfee5b29aa67a79b6cfdb4ba"
+    },
+    {
+      "index": 3484,
+      "module": "zh-cjv",
+      "changes": [
+        [
+          "locale",
+          "labels and footer",
+          "native labels; attribution at /info/licenses"
+        ]
+      ],
+      "sha256": "fe41819e7d8a35402b6e05a9f7f9920357284df530185a22a196ca8c69d54bcc"
+    },
+    {
+      "index": 3485,
+      "module": "zh-cn",
+      "changes": [
+        [
+          "locale",
+          "labels and footer",
+          "native labels; attribution at /info/licenses"
+        ]
+      ],
+      "sha256": "9e0dd133e4f4c54166d0f80c04e84b8ba8713a98ba1ebcf66a25dbfcd849f355"
+    },
+    {
+      "index": 3486,
+      "module": "zh-tw",
+      "changes": [
+        [
+          "locale",
+          "labels and footer",
+          "native labels; attribution at /info/licenses"
+        ]
+      ],
+      "sha256": "5ce940546aa0a40f76ebd43441d8eab48a36a1acf5d7885583b49662ec8ea4b4"
+    },
+    {
+      "index": 3522,
+      "module": "MorePageSettings",
+      "changes": [
+        [
+          "MorePageSettings",
+          "native groups",
+          "explicit admin and game-launch tiles"
+        ]
+      ],
+      "sha256": "603883878e7c92f59675ea39936f135577642835f6028adb5a7357c24a81d309"
+    },
+    {
+      "index": 4166,
+      "module": "WebApi",
+      "changes": [
+        [
+          "",
+          "https://www.",
+          "https://luxblox-api.onrender.com/"
+        ],
+        [
+          "",
+          "https://api.",
+          "https://luxblox-api.onrender.com/api/"
+        ],
+        [
+          "",
+          "https://chat.",
+          "https://luxblox-api.onrender.com/chat/"
+        ],
+        [
+          "",
+          "https://games.",
+          "https://luxblox-api.onrender.com/games/"
+        ],
+        [
+          "",
+          "https://metrics.",
+          "https://luxblox-api.onrender.com/metrics/"
+        ],
+        [
+          "",
+          "https://thumbnails.",
+          "https://luxblox-api.onrender.com/thumbnails/"
+        ],
+        [
+          "",
+          "https://friends.%sv1/",
+          "https://luxblox-api.onrender.com/friends/v1/"
+        ],
+        [
+          "",
+          "https://presence.%sv1/",
+          "https://luxblox-api.onrender.com/presence/v1/"
+        ],
+        [
+          "main",
+          "fixed www suffix offsets",
+          "explicit service origins"
+        ]
+      ],
+      "sha256": "10818447062e89a4d69435813343662fc27be2bd192a8539815719ec64d2d7d8"
+    },
+    {
+      "index": 4569,
+      "module": "Network",
+      "changes": [
+        [
+          "",
+          "https://www",
+          "^https://luxblox%-api%.onrender%.com/"
+        ],
+        [
+          "",
+          "https://api",
+          "https://luxblox-api.onrender.com/api/"
+        ],
+        [
+          "",
+          "https://apis",
+          "https://luxblox-api.onrender.com/apis/"
+        ],
+        [
+          "",
+          "https://abtesting",
+          "https://luxblox-api.onrender.com/abtesting/"
+        ],
+        [
+          "",
+          "https://www.",
+          "^https://luxblox%-api%.onrender%.com/"
+        ],
+        [
+          "",
+          "https://catalog.",
+          "https://luxblox-api.onrender.com/catalog/"
+        ],
+        [
+          "",
+          "https://economy.",
+          "https://luxblox-api.onrender.com/economy/"
+        ],
+        [
+          "",
+          "https://premiumfeatures.",
+          "https://luxblox-api.onrender.com/premiumfeatures/"
+        ],
+        [
+          "",
+          "https://economycreatorstats.",
+          "https://luxblox-api.onrender.com/economycreatorstats/"
+        ]
+      ],
+      "sha256": "28cbc8c185eaea7d8937195bd120efac6ab5dc7af92d28b71cc954ca31e2799e"
+    },
+    {
+      "index": 4877,
+      "module": "GameIcon",
+      "changes": [
+        [
+          "native resource URL",
+          "https://games.roblox.com/v1/games/game-thumbnail?imageToken=%s&height=250&width=250",
+          "https://luxblox-api.onrender.com/games/v1/games/game-thumbnail?imageToken=%s&height=250&width=250"
+        ]
+      ],
+      "sha256": "fd8c8c2170f202b1228465f02d551b91359e2b58b207a74a04197f331f24bdc8"
+    },
+    {
+      "index": 5086,
+      "module": "Http",
+      "changes": [
+        [
+          "buildServiceUrl",
+          "https://www.",
+          "^https://luxblox%-api%.onrender%.com/"
+        ],
+        [
+          "buildServiceUrl",
+          "https://",
+          "https://luxblox-api.onrender.com/"
+        ],
+        [
+          "buildServiceUrl",
+          ".",
+          "/"
+        ],
+        [
+          "",
+          "https://www.",
+          "^https://luxblox%-api%.onrender%.com/"
+        ],
+        [
+          "",
+          "https://assetgame.",
+          "https://luxblox-api.onrender.com/assetgame/"
+        ],
+        [
+          "",
+          "https://accountsettings.",
+          "https://luxblox-api.onrender.com/accountsettings/"
+        ]
+      ],
+      "sha256": "82ff1d646c0114a36873556156fcd17599fb25af4970512540f9e5146fff3d21"
+    }
+  ],
+  "unused_backup_bytes_removed": 62424100,
+  "native_libraries_modified": false
+}

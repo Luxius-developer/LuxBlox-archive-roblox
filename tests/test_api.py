@@ -495,5 +495,27 @@ class ApiTests(unittest.TestCase):
 
 
 
+    def test_remaining_native_avatar_thumbnail_and_info_contracts(self):
+        self.authenticated_post('/v2/signup',{'username':'NativeR8','password':'native-password','birthday':'2000-01-01T00:00:00.000Z','gender':2,'isTosAgreementBoxChecked':True})
+        # A session is issued by signup, exactly as it is for the Android client.
+        status,rules=self.request('GET','/avatar/v1/avatar-rules')
+        self.assertEqual(status,200)
+        self.assertTrue(rules['basicBodyColorsPalette'])
+        for key in ('height','width','head','depth','proportion','bodyType'):
+            self.assertLessEqual(rules['scales'][key]['min'],rules['scales'][key]['max'])
+        self.assertEqual(self.request('GET','/avatar/v1/users/1/currently-wearing')[1],{'assetIds':[]})
+        self.assertEqual(self.request('GET','/avatar/v1/users/1/outfits')[1]['data'],[])
+        status,batch=self.request('POST','/thumbnails/v1/batch',raw=json.dumps([{'requestId':'head','targetId':1,'type':'AvatarHeadShot'}]),extra={'Content-Type':'application/json'})
+        self.assertEqual(status,200)
+        self.assertEqual(batch['data'][0]['requestId'],'head')
+        self.assertIn('/luxblox/avatar/1.png',batch['data'][0]['imageUrl'])
+        for path in ('/careers','/parents','/info/terms','/info/licenses','/notificationstream/embedded'):
+            conn=http.client.HTTPConnection(*self.server.server_address)
+            conn.request('GET',path,headers={'Cookie':'; '.join(k+'='+v for k,v in self.cookies.items()),'Accept':'text/html'})
+            response=conn.getresponse();body=response.read();conn.close()
+            self.assertEqual(response.status,200,path)
+            self.assertIn(b'<!doctype html>',body)
+
+
 if __name__ == "__main__":
     unittest.main()
