@@ -2,6 +2,7 @@
 from html import escape
 import secrets
 import time
+from datetime import datetime, timezone
 from server.errors import ApiError
 from server.account_pages import STYLE
 
@@ -99,12 +100,15 @@ def conversation(backend, conversation_id, user_id):
     participants = []
     for participant_id, username in ((row['user_low'], row['low_name']),
                                      (row['user_high'], row['high_name'])):
-        participants.append({'id': participant_id, 'userId': participant_id,
+        participants.append({'id': participant_id, 'userId': participant_id,'targetId':participant_id,
                              'username': username, 'displayName': username,
                              'name': username, 'type': 'User'})
     return {'id': row['id'], 'conversationId': row['id'],
             'conversationType': 'OneToOneConversation', 'title': '',
             'participants': participants, 'hasUnreadMessages': False,
+            'conversationTitle':{'titleForViewer':'','isDefaultTitle':True},
+            'initiator':{'targetId':row['user_low'],'type':'User'},
+            'lastUpdated':datetime.now(timezone.utc).isoformat().replace('+00:00','Z'),
             'messages': []}
 
 
@@ -132,7 +136,7 @@ def conversation_messages(backend, conversation_id, user_id, page=1, page_size=5
             ORDER BY m.created_at DESC,m.id DESC LIMIT ? OFFSET ?''',
             (ids[0], ids[1], ids[1], ids[0], page_size, (page - 1) * page_size)).fetchall()
     return [{'id': r['id'], 'messageId': r['id'], 'senderTargetId': r['sender_id'],
-             'content': r['body'], 'message': r['body'], 'sent': r['created_at'],
+             'content': r['body'], 'message': r['body'], 'sent': datetime.fromtimestamp(r['created_at']/1000000,timezone.utc).isoformat().replace('+00:00','Z'),
              'read': True, 'messageType': 'PlainText',
              'sender': {'id': r['sender_id'], 'name': r['sender']}}
             for r in reversed(rows)]

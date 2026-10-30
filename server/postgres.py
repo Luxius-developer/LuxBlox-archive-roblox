@@ -13,8 +13,7 @@ class Connection:
         return self.connection.execute(query.replace('?', '%s'), params)
 
 
-def connect(url):
-    import psycopg
+def connection_options(url):
     from psycopg.rows import dict_row
     parsed = urlsplit(url)
     if parsed.scheme not in ('postgres', 'postgresql') or not parsed.hostname:
@@ -30,7 +29,18 @@ def connect(url):
     # Keep the original hostname for TLS/SNI; hostaddr selects only transport.
     addresses = socket.getaddrinfo(parsed.hostname, parsed.port or 5432, socket.AF_INET, socket.SOCK_STREAM)
     options['hostaddr'] = addresses[0][4][0]
-    connection = psycopg.connect(url, **options)
+    return options
+
+
+def create_pool(url):
+    from psycopg_pool import ConnectionPool
+    return ConnectionPool(url,kwargs=connection_options(url),min_size=0,max_size=8,
+                          timeout=10,max_idle=120,name='luxblox',open=True)
+
+
+def connect(url):
+    import psycopg
+    connection = psycopg.connect(url, **connection_options(url))
     try:
         connection.execute("SET LOCAL statement_timeout = '10s'")
     except Exception:

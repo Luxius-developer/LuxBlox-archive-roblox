@@ -19,7 +19,7 @@ from http.cookies import SimpleCookie, CookieError
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from threading import Lock
 from urllib.parse import parse_qs, urlsplit
-from server import realtime, postgres, accounts, account_pages, chat, features, feature_routes
+from server import realtime, postgres, accounts, account_pages, chat, features, feature_routes, native_routes
 from server.errors import ApiError
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -39,6 +39,7 @@ class Backend:
         self.database = str(database)
         self.database_url = database_url
         self.is_postgres = bool(database_url)
+        self.pool = postgres.create_pool(database_url) if self.is_postgres else None
         self.integrity_errors = (sqlite3.IntegrityError,)
         if self.is_postgres:
             import psycopg
@@ -79,7 +80,8 @@ class Backend:
     @contextmanager
     def connect(self):
         if self.is_postgres:
-            with postgres.connect(self.database_url) as connection:
+            with self.pool.connection() as connection:
+                connection.execute("SET LOCAL statement_timeout = '10s'")
                 yield postgres.Connection(connection)
             return
         db = sqlite3.connect(self.database, timeout=10)
@@ -90,6 +92,9 @@ class Backend:
                 yield db
         finally:
             db.close()
+
+    def close(self):
+        if self.pool is not None:self.pool.close()
 
     def rate_limit(self, address):
         now = time.monotonic()
@@ -314,10 +319,12 @@ class Handler(BaseHTTPRequestHandler):
                     "groups", "notifications", "presence", "web", "www", "ads",
                     "followings", "economy", "thumbnails", "premiumfeatures", "locale",
                     "badges", "metrics", "apis.rcs", "discussions", "contacts", "search", "static"}
-        if namespace in services and (tail.startswith(("v1/", "v2/", "v3/"))
-                                      or namespace in {"api", "apis", "web", "www"}):
+        if namespace in services and (tail.startswith(("v1/", "v1.1/", "v1.0/", "v2/", "v3/"))
+                                      or namespace in {"api", "apis", "web", "www", "assetgame"}):
             path = "/" + tail
         backend = self.server.backend
+        if native_routes.route(self,path,url,namespace):
+            return
         if feature_routes.route(self, path, url, namespace):
             return
         # The 2021 LuaApp uses chat.roblox.com/v2-style routes. Domain rewriting
@@ -456,7 +463,7 @@ class Handler(BaseHTTPRequestHandler):
                               [("Content-Type", "text/html; charset=utf-8"),
                                ("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'"),
                                ("Referrer-Policy", "no-referrer")])
-        if self.command in ("GET", "HEAD") and namespace == "games":
+        if self.command in ("GET", "HEAD") and (namespace == "games" or path.startswith('/v1/games')):
             catalog = json.loads((ROOT / "places/catalog.json").read_text())["experiences"]
             query = parse_qs(url.query)
             def selected(key, field):

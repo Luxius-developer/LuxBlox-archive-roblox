@@ -31,6 +31,7 @@ def initialize(db):
         '''CREATE TABLE IF NOT EXISTS place_votes(user_id BIGINT NOT NULL REFERENCES users(id),place_id BIGINT NOT NULL,vote INTEGER NOT NULL CHECK(vote IN(-1,1)),PRIMARY KEY(user_id,place_id))''',
         '''CREATE TABLE IF NOT EXISTS user_preferences(user_id BIGINT PRIMARY KEY REFERENCES users(id),settings TEXT NOT NULL)''',
         '''CREATE TABLE IF NOT EXISTS admin_audit(actor BIGINT NOT NULL,target BIGINT NOT NULL,action TEXT NOT NULL,created_at BIGINT NOT NULL)'''
+        ,'''CREATE TABLE IF NOT EXISTS project_admins(user_id BIGINT PRIMARY KEY REFERENCES users(id))'''
     ]: db.execute(sql)
 
 
@@ -38,6 +39,20 @@ def flags(backend, uid):
     with backend.connect() as db:
         r=db.execute('SELECT premium,verified FROM project_flags WHERE user_id=?',(uid,)).fetchone()
     return {'isPremium':bool(r and r['premium']),'hasVerifiedBadge':bool(r and r['verified']), 'isOwner':uid==backend.owner_user_id}
+
+
+def is_admin(backend,uid):
+    if uid==backend.owner_user_id:return True
+    with backend.connect() as db:
+        return db.execute('SELECT 1 FROM project_admins WHERE user_id=?',(uid,)).fetchone() is not None
+
+
+def resolve_user(backend,value):
+    value=str(value).strip()
+    with backend.connect() as db:
+        row=db.execute('SELECT id FROM users WHERE lower(username)=lower(?)',(value,)).fetchone()
+    if not row:raise ApiError(404,'Username не найден.')
+    return row['id']
 
 
 def user(backend, uid):
@@ -55,7 +70,7 @@ def preferences(backend, uid):
 def friends(backend, uid):
     with backend.connect() as db:
         rows=db.execute('SELECT low_id,high_id FROM social_friends WHERE low_id=? OR high_id=?',(uid,uid)).fetchall()
-    return [user(backend,r['high_id'] if r['low_id']==uid else r['low_id']) for r in rows]
+    return [dict(user(backend,r['high_id'] if r['low_id']==uid else r['low_id']),isFriend=True) for r in rows]
 
 
 def requests(backend, uid):
@@ -154,9 +169,12 @@ def mutate(backend,uid,session,form):
         with backend.connect() as db:db.execute('DELETE FROM sessions WHERE user_id=? AND token_hash<>?',(uid,hashlib.sha256(session.encode()).hexdigest()))
         return
     if action in ('premium','admin_flags'):
-        if uid!=backend.owner_user_id:raise ApiError(403,'Доступ только владельцу проекта.')
-        try:target=int(form.get('target',uid))
-        except ValueError:raise ApiError(400,'Некорректный пользователь.') from None
+        if action=='premium' and uid!=backend.owner_user_id:raise ApiError(403,'Доступ только владельцу проекта.')
+        if action=='admin_flags' and not is_admin(backend,uid):raise ApiError(403,'Доступ только администратору.')
+        if form.get('username','').strip():target=resolve_user(backend,form['username'])
+        else:
+            try:target=int(form.get('target',uid))
+            except ValueError:raise ApiError(400,'Некорректный пользователь.') from None
         user(backend,target)
         premium=int(form.get('premium')=='on') if action=='admin_flags' else 1
         verified=int(form.get('verified')=='on')
@@ -174,7 +192,7 @@ def page(backend,uid,session,path,query,notice=''):
     me=user(backend,uid)
     def form(action,body):return '<form method="post"><input type="hidden" name="csrf" value="'+csrf+'"><input type="hidden" name="action" value="'+action+'">'+body+'</form>'
     def badge(u):return e(u['displayName'])
-    admin=uid==backend.owner_user_id
+    admin=is_admin(backend,uid)
     nav=''
     title='LuxBlox';body=''
     if path in ('/more','/help'):
@@ -194,12 +212,17 @@ def page(backend,uid,session,path,query,notice=''):
             body='<section role="alert"><h2>Соединение прервано</h2><p>Сервер не найден. Игровой сервер LuxBlox ещё не запущен.</p><p class="muted">Это сообщение страницы LuxBlox; соединения с игровым движком не было.</p><a href="/games">Вернуться к играм</a></section>'
     elif path in ('/users/friends','/my/friends') or re.fullmatch(r'/users/\d+/friends',path):
         title='Друзья'
-        body='<section><h2>Добавить друга</h2>'+form('friend_request','<label>Username<input name="target" required maxlength="20"></label><button>Отправить заявку</button>')+'</section><section><h2>Входящие заявки</h2>'
-        for u in requests(backend,uid):
-            body+='<p>'+badge(u)+'</p>'+form('friend_accept','<input type="hidden" name="target" value="'+str(u['id'])+'"><button>Принять</button>')+form('friend_decline','<input type="hidden" name="target" value="'+str(u['id'])+'"><button class="secondary">Отклонить</button>')
-        body+='</section><section><h2>Мои друзья</h2>'
-        for u in friends(backend,uid):body+='<p>'+badge(u)+'</p>'+form('friend_unfriend','<input type="hidden" name="target" value="'+str(u['id'])+'"><button class="secondary">Удалить из друзей</button>')
-        body+='</section>'
+        body='<section><h2>Добавить друга</h2>'+form('friend_request','<label>Username<input name="target" required maxlength="20" placeholder="Имя для входа"></label><button>Отправить заявку</button>')+'</section><section><h2>Входящие заявки</h2>'
+        incoming=requests(backend,uid)
+        if not incoming:body+='<p class="muted">Новых заявок нет.</p>'
+        for u in incoming:
+            body+='<div class="friend-row"><img src="'+e(avatar_url(backend,u['id']))+'" alt=""><div class="friend-info"><strong>'+badge(u)+'</strong><p>@'+e(u['name'])+'</p></div></div><div class="friend-actions">'
+            body+=form('friend_accept','<input type="hidden" name="target" value="'+str(u['id'])+'"><button>Принять</button>')+form('friend_decline','<input type="hidden" name="target" value="'+str(u['id'])+'"><button class="secondary">Отклонить</button>')+'</div>'
+        body+='</section><section><h2>Мои друзья</h2><div class="people-grid">'
+        current_friends=friends(backend,uid)
+        for u in current_friends:body+='<a class="person" href="/users/'+str(u['id'])+'/profile"><img src="'+e(avatar_url(backend,u['id']))+'" alt=""><span>'+badge(u)+'</span></a>'
+        if not current_friends:body+='<p>Пока нет друзей.</p>'
+        body+='</div></section>'
     elif path in ('/catalog','/my/inventory') or re.fullmatch(r'/users/\d+/inventory',path):
         is_catalog=path=='/catalog';title='Каталог' if is_catalog else 'Инвентарь'
         target=int(path.split('/')[2]) if path.startswith('/users/') else uid
@@ -217,15 +240,13 @@ def page(backend,uid,session,path,query,notice=''):
         title='Аватар'
         body='<section><p>Откройте встроенную вкладку «Аватар» в приложении LuxBlox. Она использует 3D-движок клиента.</p></section>'
     elif path in ('/premium/membership','/mobile-app-upgrades/native-ios/bc','/upgrades/builderclub'):
-        title='LuxBlox Premium';body='<section><h2>'+('Premium активен' if me['isPremium'] else 'Premium')+'</h2><p>Статус сохраняется в аккаунте. Дополнительных игровых преимуществ пока нет.</p>'
-        if admin:body+=form('premium','<button>Активировать бесплатно для себя</button>')+form('premium','<label>ID получателя подарка<input name="target" type="number" min="1" required></label><button>Подарить Premium</button>')
-        else:body+='<p>199 ₽</p><a href="/checkout/unavailable">Купить</a>'
-        body+='</section>'
+        from server.classic_pages import premium
+        title='LuxBlox Premium';body=premium(me,uid==backend.owner_user_id,form)
     elif path=='/admin':
         if not admin:raise ApiError(403,'Доступ только владельцу проекта.')
         title='Админ-панель'
         with backend.connect() as db:rows=db.execute('SELECT id FROM users ORDER BY id LIMIT 200').fetchall()
-        body='<p>Галочка и Premium сохраняются в базе. Галочка видна в профилях и списках LuxBlox.</p>'
+        body='<p>Статусы сохраняются в базе. Поддержка штатной галочки в этом клиенте ещё не подключена.</p>'
         for r in rows:
             u=user(backend,r['id'])
             body+='<section><h2>'+badge(u)+' <small>#'+str(u['id'])+'</small></h2>'+form('admin_flags','<input type="hidden" name="target" value="'+str(u['id'])+'">'+''.join('<label><input type="checkbox" name="'+k+'"'+(' checked' if u[f] else '')+'> '+name+'</label>' for k,f,name in [('verified','hasVerifiedBadge','Галочка'),('premium','isPremium','Premium')])+'<button>Сохранить</button>')+'</section>'
@@ -240,10 +261,12 @@ def page(backend,uid,session,path,query,notice=''):
             body='<section>'+form('preferences',''.join('<label><input type="checkbox" name="'+k+'"'+(' checked' if p[k] else '')+'> '+name+'</label>' for k,name in [('friendRequestsEnabled','Принимать заявки в друзья'),('messagesEnabled','Принимать личные сообщения'),('friendNotifications','Уведомления о друзьях'),('messageNotifications','Уведомления о сообщениях'),('inventoryVisible','Открытый инвентарь')])+'<button>Сохранить</button>')+'</section>'
     elif re.fullmatch(r'/users/\d+/profile',path):
         target=int(path.split('/')[2]);u=user(backend,target);title='Профиль'
-        body='<section><h2>'+badge(u)+'</h2><p>@'+e(u['name'])+(' · Premium' if u['isPremium'] else '')+'</p></section>'
+        from server.classic_pages import profile
+        body=profile(backend,uid,u,form)
     else:title='Раздел LuxBlox';body='<p><a href="/more">Ещё</a></p>'
     notice='<p role="status" class="message">'+e(notice)+'</p>' if notice else ''
-    css=STYLE+'''select{width:100%;padding:10px;margin:8px 0}input[type=checkbox]{width:auto}form{margin:10px 0}.tabs{display:flex;flex-wrap:wrap;gap:12px}.cover{width:100%;max-height:260px;object-fit:cover}.avatar{display:block;width:180px;margin:auto}.secondary{background:#69777e}.badge{background:#1687d9;color:#fff;border-radius:50%;padding:1px 5px}.play{display:block;background:#00a65a;color:white;text-align:center;padding:14px;text-decoration:none;border-radius:4px}'''
+    from server.classic_pages import CSS
+    css=STYLE+CSS+'''select{width:100%;padding:10px;margin:8px 0}input[type=checkbox]{width:auto}form{margin:10px 0}.tabs{display:flex;flex-wrap:wrap;gap:12px}.cover{width:100%;max-height:260px;object-fit:cover}.avatar{display:block;width:180px;margin:auto}.secondary{background:#69777e}.badge{background:#1687d9;color:#fff;border-radius:50%;padding:1px 5px}.play{display:block;background:#00a65a;color:white;text-align:center;padding:14px;text-decoration:none;border-radius:4px}'''
     return ('<!doctype html><html lang="ru"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>'+e(title)+' — LuxBlox</title><style>'+css+'</style><header>LuxBlox</header><main>'+nav+'<h1>'+e(title)+'</h1>'+notice+body+'</main></html>').encode()
 
 

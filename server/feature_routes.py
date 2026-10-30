@@ -53,7 +53,7 @@ def route(h,path,url,namespace):
             if ex.status==401 and method in ('GET','HEAD'):return reply(303,headers=[('Location','/login')])
             raise
         uid=me['id'];notice='';status=200
-        if path=='/admin' and uid!=b.owner_user_id:raise ApiError(403,'Доступ только владельцу проекта.')
+        if path=='/admin' and not f.is_admin(b,uid):raise ApiError(403,'Доступ только администратору.')
         if method=='POST':
             try:
                 form=read_form(h);csrf=accounts.token(b,uid,session)
@@ -61,6 +61,7 @@ def route(h,path,url,namespace):
                 allowed=ALLOWED_ACTIONS.get(path,set())
                 if path in ('/users/friends','/my/friends') or re.fullmatch(r'/users/\d+/friends',path):allowed={'friend_request','friend_accept','friend_decline','friend_unfriend'}
                 if re.fullmatch(r'/users/\d+/inventory',path):allowed={'wear'}
+                if re.fullmatch(r'/users/\d+/profile',path):allowed={'friend_request'}
                 if path in ('/home','/games','/games/1001/Starter-Obby'):allowed={'vote'}
                 if form.get('action') not in allowed:raise ApiError(400,'Операция недоступна на этой странице.')
                 b.rate_limit_chat(uid);f.mutate(b,uid,session,form)
@@ -68,6 +69,14 @@ def route(h,path,url,namespace):
             except ApiError as ex:status=ex.status;notice=ex.message
         elif q.get('saved')==['1']:notice='Изменения сохранены.'
         return reply(status,f.page(b,uid,session,path,q,notice),HTML_HEADERS)
+    if path in ('/careers','/parents','/info/terms','/info/terms-of-service','/info/licenses','/info/us','/corp/careers','/corp/parents') and method in ('GET','HEAD'):
+        from server.info_pages import render
+        return reply(200,render(path),HTML_HEADERS)
+    if path=='/notificationstream/embedded' and method in ('GET','HEAD'):
+        current()
+        return reply(200,'<!doctype html><html lang="ru"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Уведомления</title><body style="font:18px Arial;background:#f2f4f5;padding:20px"><h2>Уведомления</h2><p>Новых уведомлений нет.</p><a href="/users/friends">Заявки в друзья</a></body></html>'.encode(),HTML_HEADERS)
+    if path in ('/user/get-friendship-count','/my/friends/count') and method in ('GET','HEAD'):
+        return reply(200,{'count':len(f.friends(b,current()['id']))})
     # Legacy native friends API: exact service namespace prevents catalog collisions.
     if namespace in ('friends','v1'):
         match=re.fullmatch(r'/v1/users/(\d+)/friends(?:/(count|online|statuses))?',path)
@@ -139,9 +148,23 @@ def route(h,path,url,namespace):
             if not h.require_csrf():return True
             f.set_avatar(b,uid,h.read_json());return reply(200,{'success':True})
         if path=='/v1/avatar-rules' and method in ('GET','HEAD'):
-            return reply(200,{'playerAvatarTypes':['R6'],'scales':{},'wearableAssetTypes':[{'id':11,'name':'Shirt','maxNumber':1}], 'bodyColorsPalette':[{'brickColorId':i,'hexColor':c[1:],'name':c} for i,c in f.PALETTE.items()], 'minimumDeltaEBodyColorDifference':0,'proportionsAndBodyTypeEnabledForUser':False,'defaultClothingAssetLists':{'defaultShirtAssetIds':[],'defaultPantAssetIds':[]}})
+            palette=[{'brickColorId':i,'hexColor':c[1:],'name':c} for i,c in f.PALETTE.items()]
+            return reply(200,{'playerAvatarTypes':['R6'],'scales':{k:{'min':v,'max':v,'increment':0.05} for k,v in f.avatar(b,current()['id'])['scales'].items()},'wearableAssetTypes':[{'id':11,'name':'Shirt','maxNumber':1}], 'bodyColorsPalette':palette,'basicBodyColorsPalette':palette, 'minimumDeltaEBodyColorDifference':0,'proportionsAndBodyTypeEnabledForUser':False,'defaultClothingAssetLists':{'defaultShirtAssetIds':[],'defaultPantAssetIds':[]}})
+        match=re.fullmatch(r'/v1/users/(\d+)/(currently-wearing|outfits)',path)
+        if match and method in ('GET','HEAD'):
+            return reply(200,{'assetIds':[x['id'] for x in f.avatar(b,int(match[1]))['assets']]} if match[2]=='currently-wearing' else {'data':[],'total':0,'nextPageCursor':None})
+        if path in ('/v1/avatar/set-scales','/v1/avatar/set-player-avatar-type','/v1/emotes/set-all-emotes') and method=='POST':
+            current()
+            if not h.require_csrf():return True
+            body=h.read_json()
+            if path.endswith('set-player-avatar-type') and body.get('playerAvatarType')!='R6':raise ApiError(400,'Доступен классический R6.')
+            if path.endswith('set-scales') and any(k not in ('height','width','head','depth','proportion','bodyType') or type(v) not in (int,float) or v!=(0 if k in ('proportion','bodyType') else 1) for k,v in body.items()):raise ApiError(400,'Для R6 доступны стандартные пропорции.')
+            if path.endswith('set-all-emotes') and body.get('emotes',[]):raise ApiError(400,'Эмоции пока недоступны.')
+            return reply(200,{'success':True})
     if namespace=='catalog' and path in ('/v1/search/items/details','/v2/search/items/details','/v1/search/items') and method in ('GET','HEAD'):
         return reply(200,{'data':[dict(id=p['id'],name=p['name'],description='Оригинальная одежда Vortix Studio для LuxBlox.',itemType='Asset',assetType=11,creatorType='User',creatorTargetId=b.owner_user_id,creatorName='Vortix Studio',price=0,lowestPrice=0,productId=p['id']) for p in f.SHIRTS],'nextPageCursor':None,'previousPageCursor':None})
+    if namespace=='catalog' and re.fullmatch(r'/v1/recommendations/asset/\d+',path) and method in ('GET','HEAD'):
+        return reply(200,{'data':[]})
     if path=='/luxblox/catalog' and method in ('GET','HEAD'):return reply(200,{'data':f.PRESETS+f.SHIRTS})
     if namespace=='inventory' and method in ('GET','HEAD'):
         match=re.fullmatch(r'/v1/users/(\d+)/can-view-inventory',path)
