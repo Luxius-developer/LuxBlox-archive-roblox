@@ -12,4 +12,14 @@ def render(path):
         'licenses':('Сторонние компоненты','<p>Звуковой движок: FMOD by Firelight Technologies / Firelight Studios. FMOD является компонентом исходного клиента. Авторство этой библиотеки не относится к Vortix Studio.</p>'),
         'us':('О проекте','<p>LuxBlox · Vortix Studio. Независимый архивный проект.</p>'),
     }.get(key,('Сведения','<p>LuxBlox · Vortix Studio</p>'))
-    return ('<!doctype html><html lang="ru"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>'+escape(title)+'</title><style>'+STYLE+'</style><main><h1>'+escape(title)+'</h1><section>'+body+'</section><a href="/info/licenses">Сторонние компоненты</a></main></html>').encode()
+    shell = ('<div class="topbar"><a class="brand" href="/home">LuxBlox</a>'
+             '<a href="/games">Игры</a><a href="/catalog">Каталог</a>'
+             '<a class="hide-mobile" href="/develop/landing">Создать</a>'
+             '<a class="hide-mobile" href="/help">Загрузить</a><span class="spacer"></span>'
+             '<a href="/info/about">Vortix Studio</a></div><div class="layout">'
+             '<aside class="sidebar"><a href="/home">⌂ Главная</a><a href="/users/friends">♧ Друзья</a>'
+             '<a href="/my/avatar">♟ Аватар</a><a href="/my/inventory">▣ Инвентарь</a>'
+             '<a href="/my/messages">▤ Сообщения</a><a href="/premium/membership">Premium</a>'
+             '<a href="/more">Ещё</a></aside><main class="content"><h1>' + escape(title) +
+             '</h1><section>' + body + '</section><a href="/info/licenses">Сторонние компоненты</a></main></div>')
+    return ('<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>'+escape(title)+'</title><style>'+STYLE+'</style></head><body>'+shell+'</body></html>').encode()

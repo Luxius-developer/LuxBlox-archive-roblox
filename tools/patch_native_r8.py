@@ -57,8 +57,8 @@ def patch_script(raw,index,name,compiler):
                 if index==2952:new=old.replace('http://www.roblox.com/asset/?id=',ORIGIN+'/asset/?id=')
                 if old!=new:k[1]=add_string(c,new);changes.append(['native resource URL',old,new])
     if re.fullmatch(r'[a-z]{2}(?:-[a-z]+)?',name) and b'CommonUI.Features.Label.FMODCredits' in c['strings']:
-        source='local t=...;t["CommonUI.Features.Label.CreateGames"]="Админ-панель";t["CommonUI.Features.Label.MyFeed"]="Запустить 3D-плейс";t["CommonUI.Features.Label.FMODCredits"]="";return t'
-        append_wrapper(c,compile_wrapper(compiler,source));changes.append(['locale','labels and footer','native labels; attribution at /info/licenses'])
+        source='local t=...;t["CommonUI.Features.Label.CreateGames"]="Админ-панель";t["CommonUI.Features.Label.MyFeed"]="Запустить 3D-плейс";t["CommonUI.Features.Label.FMODCredits"]="Использует FMOD от Firelight Studios\\nСделано Vortix Studio";return t'
+        append_wrapper(c,compile_wrapper(compiler,source));changes.append(['locale','labels and footer','FMOD credit retained; Vortix Studio line added'])
     new=serialize(c)
     if serialize(parse(new))!=new:raise ValueError('Bytecode roundtrip failed')
     return new,changes

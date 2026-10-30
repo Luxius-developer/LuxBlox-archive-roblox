@@ -2,7 +2,7 @@
   "api_base": "https://luxblox-api.onrender.com",
   "package": "com.luxius.luxblox",
   "source_tag": "2021",
-  "profile": "native-r8",
-  "versionCode": 974,
-  "release": "android-r8"
+  "profile": "native-r9",
+  "versionCode": 975,
+  "release": "android-r9"
 }

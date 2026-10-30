@@ -1,0 +1,27 @@
+{
+  "apk": "LuxBlox-r9.apk",
+  "package": "com.luxius.luxblox",
+  "versionCode": 975,
+  "versionName": "2.477.421716",
+  "sha256": "f40ebfa788619fed1654ba41cf3d01eda12c5db7110fb1a6d639303c4cabbc66",
+  "size": 124403678,
+  "signature_scheme": [
+    "v1",
+    "v2",
+    "v3"
+  ],
+  "signing_certificate_sha256": "50e21a180d5f9ad761be5ac7ff8c233ea502a25fe661dc1b907fe542b4386a90",
+  "zipalign_verified": true,
+  "native_libraries_unchanged_from_r8": true,
+  "patched_obb_entries": [
+    "ExtraContent/models/DataModelPatch/DataModelPatch.rbxm"
+  ],
+  "datamodel_patch_sha256": "90a4442cce41450ce70614701e5a2007ebc824f9fe5be8858c6ba7b0912c0f0f",
+  "server_tests": {
+    "passed": 48,
+    "skipped": 2,
+    "total": 50
+  },
+  "android_device_tested": false,
+  "game_session_verified": false
+}
