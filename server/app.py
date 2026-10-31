@@ -323,6 +323,20 @@ class Handler(BaseHTTPRequestHandler):
                                       or namespace in {"api", "apis", "web", "www", "assetgame"}):
             path = "/" + tail
         backend = self.server.backend
+        # R9 LuaApp: POST /presence/v1/presence/users. Friend loading waits
+        # for this request to resolve before dispatching FetchUserFriendsCompleted.
+        if namespace == "presence" and path == "/v1/presence/users" and self.command == "POST":
+            backend.current_user(self.cookie_value(SESSION_COOKIE))
+            body = self.read_json()
+            ids = body.get("userIds")
+            if not isinstance(ids, list) or len(ids) > 100 or any(type(i) is not int or i <= 0 for i in ids):
+                raise ApiError(400, "Invalid userIds.")
+            return self.reply(200, {"userPresences": [
+                {"userId": i, "userPresenceType": 0, "lastLocation": "",
+                 "placeId": None, "rootPlaceId": None, "gameId": None,
+                 "universeId": None, "lastOnline": None}
+                for i in ids
+            ]})
         if native_routes.route(self,path,url,namespace):
             return
         if feature_routes.route(self, path, url, namespace):
