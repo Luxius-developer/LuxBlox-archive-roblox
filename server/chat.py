@@ -91,8 +91,11 @@ def conversation(backend, conversation_id, user_id):
     except (TypeError, ValueError):
         raise ApiError(400, 'Некорректный ID чата.') from None
     with backend.connect() as db:
-        row = db.execute('''SELECT c.id,c.user_low,c.user_high,
-            a.username AS low_name, b.username AS high_name
+        row = db.execute('''SELECT c.id,c.user_low,c.user_high,c.created_at,
+            a.username AS low_name, b.username AS high_name,
+            (SELECT MAX(m.created_at) FROM chat_messages m
+             WHERE (m.sender_id=c.user_low AND m.recipient_id=c.user_high)
+                OR (m.sender_id=c.user_high AND m.recipient_id=c.user_low)) AS latest_message_at
             FROM chat_conversations c JOIN users a ON a.id=c.user_low
             JOIN users b ON b.id=c.user_high WHERE c.id=?''', (conversation_id,)).fetchone()
     if row is None or user_id not in (row['user_low'], row['user_high']):
@@ -108,7 +111,7 @@ def conversation(backend, conversation_id, user_id):
             'participants': participants, 'hasUnreadMessages': False,
             'conversationTitle':{'titleForViewer':'','isDefaultTitle':True},
             'initiator':{'targetId':row['user_low'],'type':'User'},
-            'lastUpdated':datetime.now(timezone.utc).isoformat().replace('+00:00','Z'),
+            'lastUpdated':datetime.fromtimestamp((row['latest_message_at'] or row['created_at'])/1000000, timezone.utc).isoformat().replace('+00:00','Z'),
             'messages': []}
 
 
@@ -116,8 +119,11 @@ def conversations(backend, user_id, page=1, page_size=20):
     page = max(1, min(10000, int(page)))
     page_size = max(1, min(50, int(page_size)))
     with backend.connect() as db:
-        rows = db.execute('''SELECT id FROM chat_conversations
-            WHERE user_low=? OR user_high=? ORDER BY created_at DESC,id DESC
+        rows = db.execute('''SELECT c.id FROM chat_conversations c
+            WHERE c.user_low=? OR c.user_high=?
+            ORDER BY COALESCE((SELECT MAX(m.created_at) FROM chat_messages m
+                WHERE (m.sender_id=c.user_low AND m.recipient_id=c.user_high)
+                   OR (m.sender_id=c.user_high AND m.recipient_id=c.user_low)), c.created_at) DESC, c.id DESC
             LIMIT ? OFFSET ?''', (user_id, user_id, page_size, (page - 1) * page_size)).fetchall()
     return [conversation(backend, row['id'], user_id) for row in rows]
 
