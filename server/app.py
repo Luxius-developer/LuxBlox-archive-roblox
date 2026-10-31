@@ -638,8 +638,17 @@ class Handler(BaseHTTPRequestHandler):
             if not realtime.valid(backend.realtime_secret, token, user["id"]):
                 raise ApiError(403, "Invalid or expired realtime connection.")
             if action in ("connect", "reconnect", "poll", "start", "abort"):
-                if query.get("transport", [""])[0] != "longPolling":
-                    raise ApiError(400, "Only longPolling is available.")
+                transport = query.get("transport", [""])[0]
+                if transport == "webSockets":
+                    if action in ("connect", "reconnect") and self.command == "GET":
+                        return realtime.websocket(self, action)
+                    if action == "start":
+                        return self.reply(200, {"Response": "started"})
+                    if action == "abort":
+                        return self.reply(200)
+                    raise ApiError(400, "Invalid WebSocket transport operation.")
+                if transport != "longPolling":
+                    raise ApiError(400, "Unsupported realtime transport.")
                 if action == "start":
                     return self.reply(200, {"Response": "started"})
                 if action == "abort":
