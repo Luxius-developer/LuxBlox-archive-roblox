@@ -328,7 +328,7 @@ class ApiTests(unittest.TestCase):
         self.authenticated_post("/v2/signup", {"username": "SignalTest", "password": "test-password"})
         status, negotiation = self.request("GET", prefix + "negotiate?clientProtocol=1.5")
         self.assertEqual(status, 200)
-        self.assertFalse(negotiation["TryWebSockets"])
+        self.assertTrue(negotiation["TryWebSockets"])
         self.assertEqual(negotiation["ProtocolVersion"], "1.5")
         query = urlencode({"transport": "longPolling", "connectionToken": negotiation["ConnectionToken"]})
         self.assertEqual(self.request("GET", prefix + "connect?" + query), (200, {"C": "0", "M": [], "S": 1}))
